@@ -1,0 +1,3 @@
+#pragma once
+inline constexpr char kBanner[] = R"UI(@DEVTOOLS_BANNER@)UI";
+inline constexpr char kSdkDocs[] = R"SDKDOC(@DEVTOOLS_SDK_DOCS@)SDKDOC";

@@ -1,0 +1,58 @@
+#pragma once
+/// libwxui — RichEdit control (wraps wxTextCtrl in rich/multi-line mode).
+
+#include "container.hpp"
+#include <wx/colour.h>
+#include <wx/textctrl.h>
+
+namespace wxui {
+
+class RichEdit : public Container {
+public:
+    ~RichEdit() override;
+    void DoPaint(wxDC& dc, const wxRect& clipRect) override;
+    void SetAttribute(const std::string& key, const std::string& val) override;
+    std::string GetTag() const override { return "RichEdit"; }
+
+    void SetRect(const wxRect& rc) override;
+    void OnManagerSet()            override;
+
+    // ── Content ──────────────────────────────────────────────────────
+    [[nodiscard]] wxString GetValue()       const;
+    [[nodiscard]] std::string GetValueUtf8() const { return WxStringToUtf8(GetValue()); }
+    void SetValue(const wxString& v);
+    void SetValue(std::string_view v) { SetValue(Utf8ToWxString(v)); }
+    void AppendText(const wxString& t);
+    void AppendText(std::string_view t) { AppendText(Utf8ToWxString(t)); }
+    void AppendText(const wxString& t, const wxColour& color);
+    void AppendText(std::string_view t, const wxColour& color) {
+        AppendText(Utf8ToWxString(t), color);
+    }
+    void Clear();
+
+    // ── Style ─────────────────────────────────────────────────────────
+    void SetReadOnly(bool r);
+
+private:
+    void CreateNativeCtrl();
+    void SyncStyle();
+
+    wxTextCtrl* textCtrl_       = nullptr;
+
+    bool borderVisible_  = false;
+    bool autoVScroll_    = true;
+    bool autoHScroll_    = false;
+    bool wantTab_        = true;
+    bool wantReturn_     = true;
+    bool wantCtrlReturn_ = true;
+    bool transparent_    = true;
+    bool rich_           = false;
+    bool multiLine_      = true;
+    bool readOnly_       = false;
+    bool password_       = false;
+    wxColour textColor_;
+    wxRect textPadding_  {6, 0, 6, 0};
+    int fontId_          = -1;
+};
+
+} // namespace wxui

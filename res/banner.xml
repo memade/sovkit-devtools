@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Window bkcolor="#FF122437">
+  <HorizontalLayout inset="20,10,20,10" childpadding="20">
+    <VerticalLayout>
+      <Label text="SOVKIT / DEVTOOLS" textcolor="#FFF0F5FA" height="28"/>
+      <Label text="检查能力 → 启动独立身份 → 发现与配对 → 收发验证 → 导出诊断" textcolor="#FFAFC6D9" height="22"/>
+    </VerticalLayout>
+    <Label text="0.1.0 · PUBLIC SDK ONLY" textcolor="#FF7FE0C2" width="220"/>
+  </HorizontalLayout>
+</Window>

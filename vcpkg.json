@@ -1,0 +1,6 @@
+{
+  "name": "sovkit-devtools",
+  "version-semver": "0.1.0",
+  "builtin-baseline": "45f9f39362a4c52e2b1fbe57b7e649db7f3d96d4",
+  "dependencies": ["wxwidgets", "fmt", "rapidjson", "utfcpp", "nlohmann-json"]
+}
