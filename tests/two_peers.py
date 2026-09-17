@@ -5,6 +5,7 @@ import hashlib
 import json
 from pathlib import Path
 import queue
+import shutil
 import subprocess
 import tempfile
 import threading
@@ -50,7 +51,15 @@ def wait(check, timeout=15):
     raise AssertionError('condition timed out')
 
 with tempfile.TemporaryDirectory(prefix='sovkit-devtools-test-') as directory:
-    root = Path(directory)
+    root = Path(directory) / '中文 SDK 测试'
+    root.mkdir()
+    library = Path(a.library).resolve()
+    runtime = root / 'runtime'
+    runtime.mkdir()
+    for item in library.parent.iterdir():
+        if item.is_file() and (item.suffix.lower() in ('.dll', '.dylib') or '.so' in item.name):
+            shutil.copy2(item, runtime / item.name)
+    a.library = str(runtime / library.name)
     left, right = Peer(), Peer()
     try:
         identity = left.call('start', profile=str(root/'left'), password='isolated-test-only', deviceName='Left')['identity']
@@ -65,15 +74,20 @@ with tempfile.TemporaryDirectory(prefix='sovkit-devtools-test-') as directory:
         left.call('pairing_confirm', {'accept': True}); right.call('pairing_confirm', {'accept': True})
         left_rel = wait(lambda: left.call('relationship_list'))[0]['relationshipId']
         right_rel = wait(lambda: right.call('relationship_list'))[0]['relationshipId']
-        left.call('message_send', {'relationshipId': left_rel, 'text': 'devtools loopback message'})
+        sent = left.call('message_send', {'relationshipId': left_rel, 'text': 'devtools 中文消息🙂'})
         def received():
             right.call('message_flush')
             rows = right.call('message_list', {'relationshipId': right_rel})
-            return any(x.get('text') == 'devtools loopback message' for x in rows)
+            return any(x.get('text') == 'devtools 中文消息🙂' for x in rows)
         wait(received)
-        source = root/'payload.bin'; source.write_bytes(bytes(range(256))*80)
+        def delivered():
+            right.call('message_flush'); left.call('message_flush')
+            return any(x['messageId'] == sent['messageId'] and x['state'] == 'delivered'
+                       for x in left.call('message_list', {'relationshipId': left_rel}))
+        wait(delivered)
+        source = root/'中文 payload.bin'; source.write_bytes(bytes(range(256))*80)
         inbox = root/'inbox'; inbox.mkdir()
-        left.call('transfer_offer', {'relationshipId': left_rel, 'sourcePaths': [str(source)], 'logicalNames': ['payload.bin']})
+        left.call('transfer_offer', {'relationshipId': left_rel, 'sourcePaths': [str(source)], 'logicalNames': ['中文 payload.bin']})
         def incoming():
             right.call('transfer_flush')
             return right.call('transfer_list')
@@ -81,8 +95,13 @@ with tempfile.TemporaryDirectory(prefix='sovkit-devtools-test-') as directory:
         right.call('transfer_decide', {'transferId': transfer['transferId'], 'accept': True, 'destinationDirectory': str(inbox)})
         def copied():
             left.call('transfer_flush'); right.call('transfer_flush')
-            return (inbox/'payload.bin').is_file() and (inbox/'payload.bin').read_bytes() == source.read_bytes()
+            return (inbox/'中文 payload.bin').is_file() and (inbox/'中文 payload.bin').read_bytes() == source.read_bytes()
         wait(copied, 25)
+        def completed():
+            left.call('transfer_flush'); right.call('transfer_flush')
+            states = [p.call('transfer_list')[0]['state'] for p in (left, right)]
+            return all(state == 'completed' for state in states)
+        wait(completed)
         left.call('stop'); right.call('stop')
         left.close(); left = Peer()
         before = {name: hashlib.sha256((root/'left'/name).read_bytes()).digest()

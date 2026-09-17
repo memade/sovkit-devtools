@@ -25,13 +25,16 @@ Recipe recipe(const std::string &op) {
   if (op.starts_with("transfer_") && op != "transfer_offer" && op != "transfer_decide" && op != "transfer_list" && op != "transfer_flush") r.request = {{"transferId", ""}};
   if (op == "identity_create" || op == "identity_rename_device") r.request = {{"deviceName", "DevTools"}};
   if (op == "proximity_invitation_inspect" || op == "pairing_start_from_invitation") r.request = {{"uri", ""}};
+  if (op == "session_resume") { r.request = {{"op", "foreground"}}; r.help = "从挂起返回时触发恢复；accepted 只表示入队，继续查看 session_list 和消息回执。"; }
+  if (op == "store_conversation_v1") { r.request = {{"relationshipId", ""}, {"action", "read"}}; r.help = "读取会话草稿与修订号；保存 draft 时 action=save，expectedRevision 必须等于读取的 draftRevision。返回 requestId 后轮询 store_result_v1。"; }
+  if (op == "message_forget") { r.request = {{"relationshipId", ""}}; r.help = "省略 messageId 会删除该关系全部已结算的本地消息；不删除对方副本或接收文件。"; }
   if (op == "network_share" || op == "connection_assistance") r.request = {{"op", "status"}};
   if (op == "network_paths_update") r.request = {{"paths", Json::array()}};
   if (op == "wan_offer_create") r.request = {{"step", "begin"}, {"purpose", "pairing"}};
   if (op == "wan_offer_accept" || op == "wan_answer_accept") r.request = {{"package", ""}};
   if (op == "wan_route_stop") r.request = {{"generation", ""}};
   if (op == "store_query_v1") { r.request = {{"kind", "message"}, {"limit", 50}}; r.help = "需要持久化测试身份打开 SQLCipher。返回 requestId 后用 store_result_v1 查询实际完成状态。kind 支持 message / transfer。"; }
-  if (op == "store_result_v1") { r.request = {{"requestId", 0}}; r.help = "填入提交响应中的数值 requestId；未完成为 -10004，完成后仍检查 result.status。"; }
+  if (op == "store_result_v1") { r.request = {{"requestId", 0}}; r.help = "填入提交响应中的 requestId（整数或十进制字符串）；未完成为 -10004，完成后检查 data.status。结果成功取出后即消费。"; }
   if (op == "log_configure_v1") { r.request = {{"version", 1}, {"directory", ""}, {"role", "helper"}, {"console", false}, {"minimumLevel", "info"}}; r.help = "先填写独立日志目录的绝对路径。日志是脱敏明文，不是密码库内容；role 使用 helper。"; }
   if (op == "log_read_v1") r.request = {{"afterSeq", "0"}, {"maxCount", 100}};
   if (op == "identity_export" || op == "identity_import" || op.find("remove") != std::string::npos || op.find("revoke") != std::string::npos || op.find("forget") != std::string::npos || r.group == "网络实验 · 手动") r.confirm = true;

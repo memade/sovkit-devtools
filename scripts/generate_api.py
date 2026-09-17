@@ -8,7 +8,7 @@ p = argparse.ArgumentParser()
 p.add_argument('header', type=pathlib.Path)
 p.add_argument('output', type=pathlib.Path)
 a = p.parse_args()
-s = re.sub(r'/\*.*?\*/|//[^\n]*', '', a.header.read_text(), flags=re.S)
+s = re.sub(r'/\*.*?\*/|//[^\n]*', '', a.header.read_text(encoding="utf-8"), flags=re.S)
 decls = re.findall(r'SOVKIT_API\s+([\w\s*]+?)\s*SOVKIT_CALL\s+(sovkit_\w+)\s*\((.*?)\)\s*;', s, re.S)
 expected = set(re.findall(r'SOVKIT_API\s+[^;{}#]*?\b(sovkit_\w+)\s*\(', s))
 if len(decls) < 70 or {row[1] for row in decls} != expected:
@@ -30,11 +30,11 @@ for ret, name, params in decls:
         elif params == 'void':
             shape, call = 'void', f'{name}()'
     if shape:
-        short = name.removeprefix('sovkit_')
+        short = name[len('sovkit_'):]
         names.append(f'  {{"{short}", "{shape}"}},')
         dispatch.append(f'  if (op == "{short}") return capture([&](char **unused, size_t *ignored) {{ (void)unused; (void)ignored; return {call}; }}, out, size);')
 a.output.mkdir(parents=True, exist_ok=True)
 for filename, lines in [('api_members.inc', members), ('api_load.inc', loads), ('api_dispatch.inc', dispatch), ('api_names.inc', names)]:
-    (a.output / filename).write_text('\n'.join(lines) + '\n')
-(a.output/'api_count.inc').write_text(str(len(decls)))
+    (a.output / filename).write_text('\n'.join(lines) + '\n', encoding='utf-8')
+(a.output/'api_count.inc').write_text(str(len(decls)), encoding='utf-8')
 print(f'Public contract: {len(decls)} typed imports, {len(names)} JSON operations')

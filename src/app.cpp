@@ -146,8 +146,13 @@ public:
     });
     button(workspace, actions, "选择接收目录…", [this] {
       wxDirDialog dlg(this, w("明确授权保存接收文件的目录")); if (dlg.ShowModal() != wxID_OK) return;
-      try { auto data = Json::parse(u(request_->GetValue())); data["destinationDirectory"] = u(dlg.GetPath()); request_->SetValue(w(data.dump(2))); }
-      catch (...) { wxMessageBox(w("请先选择 transfer_decide 并使用有效 JSON。"), w("请求"), wxOK, this); }
+      auto data = recipe("transfer_decide").request;
+      try {
+        auto current = Json::parse(u(request_->GetValue()));
+        if (current.contains("transferId")) data["transferId"] = current["transferId"];
+      } catch (...) {}
+      data["destinationDirectory"] = u(dlg.GetPath());
+      select("transfer_decide"); request_->SetValue(w(data.dump(2)));
     });
     ws->Add(actions, 0, wxEXPAND);
     auto *editors = new wxSplitterWindow(workspace, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxSP_LIVE_UPDATE);

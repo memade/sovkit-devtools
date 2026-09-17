@@ -10,6 +10,8 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+#include <aclapi.h>
+#include <sddl.h>
 #else
 #include <dlfcn.h>
 #include <fcntl.h>
@@ -43,6 +45,62 @@ Json diagnostic(const Json &r) {
   return result;
 }
 namespace {
+#ifdef _WIN32
+// Like chmod(0700) on macOS: protect only an explicitly selected empty or
+// DevTools-owned directory. Never take ownership of another user's directory.
+class ProfilePermissions {
+  struct LocalMemory { void *value = nullptr; ~LocalMemory() { if (value) LocalFree(value); } } descriptor_;
+  struct Handle { HANDLE value = INVALID_HANDLE_VALUE; ~Handle() { if (value != INVALID_HANDLE_VALUE && value) CloseHandle(value); } };
+  std::vector<unsigned char> user_;
+  PSID sid() const { return reinterpret_cast<const TOKEN_USER *>(user_.data())->User.Sid; }
+  static void require(bool ok) {
+    if (!ok) throw std::runtime_error("Cannot prepare private Windows profile (error " + std::to_string(GetLastError()) + ")");
+  }
+public:
+  ProfilePermissions() {
+    Handle token;
+    require(OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token.value) != FALSE);
+    DWORD size = 0;
+    GetTokenInformation(token.value, TokenUser, nullptr, 0, &size);
+    require(size != 0); user_.resize(size);
+    require(GetTokenInformation(token.value, TokenUser, user_.data(), size, &size) != FALSE);
+    LocalMemory text;
+    require(ConvertSidToStringSidW(sid(), reinterpret_cast<LPWSTR *>(&text.value)) != FALSE);
+    const auto *name = static_cast<const wchar_t *>(text.value);
+    const std::wstring sddl = std::wstring(L"O:") + name + L"D:P(A;OICI;FA;;;" + name + L")(A;OICI;FA;;;SY)";
+    require(ConvertStringSecurityDescriptorToSecurityDescriptorW(sddl.c_str(), SDDL_REVISION_1, &descriptor_.value, nullptr) != FALSE);
+  }
+  void create(const fs::path &path) {
+    fs::create_directories(path.parent_path());
+    SECURITY_ATTRIBUTES attributes{sizeof(attributes), descriptor_.value, FALSE};
+    if (!CreateDirectoryW(path.c_str(), &attributes)) require(GetLastError() == ERROR_ALREADY_EXISTS);
+  }
+  void protect(const fs::path &path) {
+    Handle directory;
+    directory.value = CreateFileW(path.c_str(), READ_CONTROL | WRITE_DAC,
+        FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
+    require(directory.value != INVALID_HANDLE_VALUE);
+    BY_HANDLE_FILE_INFORMATION info{};
+    require(GetFileInformationByHandle(directory.value, &info) != FALSE);
+    if (!(info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) || (info.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT))
+      throw std::runtime_error("Profile must be a regular directory");
+    LocalMemory existing;
+    PSID owner = nullptr;
+    const auto status = GetSecurityInfo(directory.value, SE_FILE_OBJECT,
+        OWNER_SECURITY_INFORMATION, &owner, nullptr, nullptr, nullptr, &existing.value);
+    if (status != ERROR_SUCCESS || !owner || !EqualSid(owner, sid()))
+      throw std::runtime_error("Choose a profile directory owned by the current Windows user");
+    PACL acl = nullptr; BOOL present = FALSE, defaulted = FALSE;
+    require(GetSecurityDescriptorDacl(descriptor_.value, &present, &acl, &defaulted) && present);
+    const auto changed = SetSecurityInfo(directory.value, SE_FILE_OBJECT,
+        DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION,
+        nullptr, nullptr, acl, nullptr);
+    if (changed != ERROR_SUCCESS)
+      throw std::runtime_error("Cannot protect profile ACL (Windows error " + std::to_string(changed) + ")");
+  }
+};
+#endif
 std::vector<uint8_t> bytes(const fs::path &path) {
   const auto size = fs::file_size(path);
   if (size > 64 * 1024 * 1024) throw std::runtime_error("Profile file exceeds 64 MiB");
@@ -98,10 +156,19 @@ void Sdk::load(const fs::path &path) {
 #else
   library_ = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
 #endif
-  if (!library_) throw std::runtime_error("Cannot load SDK: check architecture, OS, signature and runtime dependencies");
+  if (!library_) {
+#ifdef _WIN32
+    const auto detail = "Windows error " + std::to_string(GetLastError()) +
+        " (126: missing DLL/dependency; 193: wrong architecture or invalid image)";
+#else
+    const char *error = dlerror();
+    const std::string detail = error ? error : "unknown loader error";
+#endif
+    throw std::runtime_error("Cannot load SDK: " + detail);
+  }
   try {
     sovkit_abi_version = symbol<decltype(sovkit_abi_version)>("sovkit_abi_version");
-    if (sovkit_abi_version() != SOVKIT_ABI_VERSION) throw std::runtime_error("SDK/header ABI mismatch");
+    if (sovkit_abi_version() != SOVKIT_ABI_VERSION) throw std::runtime_error("SDK/header ABI mismatch: runtime=" + std::to_string(sovkit_abi_version()) + ", header=" + std::to_string(SOVKIT_ABI_VERSION));
 #include "api_load.inc"
     if (sovkit_register_log_cb(log, this) != 0) throw std::runtime_error("Cannot register log callback");
   } catch (...) {
@@ -145,13 +212,20 @@ Json Sdk::execute(const std::string &op, const Json &request) {
 void Sdk::lock_profile(const fs::path &profile) {
   if (profile.empty()) return;
   if (!profile.is_absolute()) throw std::runtime_error("Profile directory must be absolute");
+#ifdef _WIN32
+  ProfilePermissions permissions;
+  permissions.create(profile);
+#else
   fs::create_directories(profile);
+#endif
   profile_ = fs::canonical(profile);
   if (!fs::exists(profile_ / "devtools-profile.json") && !fs::is_empty(profile_)) {
     profile_.clear();
     throw std::runtime_error("Choose an empty directory or an existing DevTools profile; product data is never opened");
   }
-#ifndef _WIN32
+#ifdef _WIN32
+  permissions.protect(profile_);
+#else
   if (::chmod(profile_.c_str(), 0700) != 0) throw std::runtime_error("Cannot protect profile directory");
 #endif
   const auto file = profile_ / ".devtools.lock";

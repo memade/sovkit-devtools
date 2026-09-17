@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Create private Windows profiles with the current user as owner and an inheritable user/SYSTEM ACL; fix persistent store open failures.
+
+- Fix Windows Python 3.8 API generation, UTF-8 source reading, Unicode DLL paths and console encoding.
+- Accept Windows bin/ SDK layouts; include OS loader diagnostics.
+- Select the receive API when choosing a destination; correct recovery and store-result templates.
+- Extend real SDK regressions to Unicode DLL/profile/file paths and messages.
+- Refresh the embedded SDK integration guide.
+
 ## 0.1.0 — Initial source preview — 2026-09-16
 
 - Native wxWidgets/libwxui workbench and JSONL console consuming only the public SovKit SDK package.

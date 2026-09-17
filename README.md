@@ -6,7 +6,7 @@ English | [简体中文](README.zh-CN.md) · [SovKit website](https://skstu.com)
 
 SovKit DevTools is an open-source desktop workbench for developers integrating the SovKit SDK. Load the library, create an isolated test identity, inspect requests and events, and reproduce pairing, messaging, and file-transfer problems. A companion CLI lets you automate the same workflows.
 
-**0.1.0 is an initial preview.** macOS arm64 has been built and exercised. Windows and Linux have build presets; validation and polish on those systems are the next priority. The current GUI is primarily in Chinese.
+**0.1.0 is an initial preview.** macOS arm64 and Windows x64 have native builds, GUI startup checks and real SDK loopback regressions. Cross-machine/high-DPI manual testing remains separate; Linux has presets but is not yet validated. The current GUI is primarily in Chinese.
 
 ## Why this project exists
 
@@ -35,10 +35,10 @@ BLE support currently means **SDK frame injection/polling**, not OS Bluetooth sc
 | --- | --- | --- |
 | macOS arm64 | Debug/Release builds, GUI launch, extracted ZIP self-test, and two-process LAN tests passed | Broader two-machine testing and distribution polish |
 | macOS x64 | Build preset available | Build and test on matching hardware |
-| Windows x64 | MSVC/vcpkg presets available; not yet validated on Windows | Native builds, paths, UI, networking, and packaging |
+| Windows x64 | MSVC Debug GUI/CLI built; public SDK and Unicode loopback regressions passed | High DPI, two-machine UI workflows, distribution |
 | Linux x64 / arm64 | Build presets available; not yet validated on Linux | Native builds, GTK integration, networking, and packaging |
 
-Tests cover pairing confirmation, message delivery, exact file bytes, encrypted profile reopening, exclusive profile access, and wrong-password data retention. These are local tests, not a claim of complete cross-platform interoperability. See the [validation record (中文)](docs/VALIDATION_20260916.md).
+Tests cover pairing confirmation, message delivery, exact file bytes, encrypted profile reopening, exclusive profile access, and wrong-password data retention. These are local tests, not a claim of complete cross-platform interoperability. See the [validation record (中文)](docs/VALIDATION_20260917.md).
 
 ## Get started
 
@@ -51,7 +51,8 @@ Use a 0.1.0 SDK with ABI 25 and `sovkit_info().keystoreDetachVersion >= 1`. A li
 ```text
 sdk/
   include/sovkit.h
-  lib/libsovkit.dylib   # Windows: libsovkit.dll; Linux: libsovkit.so
+  lib/libsovkit.dylib   # Linux: libsovkit.so
+  bin/libsovkit.dll     # Windows; lib/ also accepted
   README.md            # SDK integration guide
   LICENSE / NOTICE.md / licenses/ / third_party/  # as supplied by the SDK
 ```
@@ -106,7 +107,7 @@ SDK logs may also appear on stdout. Only JSON lines containing `result` are comm
 
 ## Roadmap and contributions
 
-The next milestone is **Windows/Linux validation and usability**: native builds, Unicode paths, high DPI, two-machine communication, failure recovery, and packaging. Native Bluetooth GATT integration is separate future work. WAN/network-sharing expansion is deferred.
+The next milestone is **cross-machine usability and Linux validation**: high DPI, two-machine communication, failure recovery, and packaging. Native Bluetooth GATT integration is separate future work. WAN/network-sharing expansion is deferred.
 
 Useful contributions include small fixes, reproducible issues, platform test results, and documentation improvements. See [CONTRIBUTING.md](CONTRIBUTING.md), the [manual test checklist (中文)](docs/MANUAL_TESTING.md), and [architecture notes (中文)](docs/ARCHITECTURE.md). Changes are recorded in [CHANGELOG.md](CHANGELOG.md).
 
@@ -117,3 +118,16 @@ If this helps your integration, star the repository, share your findings, and ex
 DevTools-owned code is released under the [MIT License](LICENSE). The bundled libwxui snapshot retains its [upstream MIT License](3rdparty/libwxui/LICENSE) and attribution. The desktop approach was inspired by OrbitBridge/brostu: C++20, wxWidgets, libwxui, CMake, and vcpkg, with independent build integration here.
 
 **The SovKit SDK is separately licensed.** DevTools' MIT license does not relicense SDK binaries or their dependencies. Preserve the licensing materials supplied with each SDK package. See [NOTICE.md](NOTICE.md) for dependency attribution.
+
+
+### Windows SDK debugging
+
+Use Python 3.8+ and an x64 Developer PowerShell. The standalone SDK needs
+`include/sovkit.h`, `README.md` (integration guide), and `bin/libsovkit.dll`
+(or `lib/libsovkit.dll`; `lib/` takes precedence). No SDK import library is needed.
+Run `python scripts/build.py windows-x64-debug --sdk C:/SDK --test`, then open
+`.build/windows-x64-debug/sovkit-devtools.exe`. Select the library, load it, run
+`selftest`, then start a disposable identity. Restart the tool to change SDKs.
+Windows loader errors include the OS code (126: dependency; 193: architecture).
+The CLI accepts Unicode DLL paths and UTF-8 JSONL. The two-process regression
+uses loopback, not a cross-machine or Bluetooth radio test.
