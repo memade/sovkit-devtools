@@ -78,6 +78,8 @@ if(DEVTOOLS_BUILD_GUI)
     COMMAND_ERROR_IS_FATAL ANY)
   add_executable(sovkit-devtools WIN32 MACOSX_BUNDLE src/app.cpp)
   target_link_libraries(sovkit-devtools PRIVATE devtools_core libwxui)
+  set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT sovkit-devtools)
+  set_property(TARGET sovkit-devtools PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:sovkit-devtools>")
   set_target_properties(sovkit-devtools PROPERTIES
     MACOSX_BUNDLE_BUNDLE_NAME "SovKit DevTools"
     MACOSX_BUNDLE_GUI_IDENTIFIER "com.skstu.sovkit.devtools"
@@ -92,7 +94,8 @@ if(DEVTOOLS_BUILD_GUI)
     add_custom_target(devtools-stage-sdk ALL
       COMMAND ${CMAKE_COMMAND} -E make_directory "${runtime_destination}"
       COMMAND ${CMAKE_COMMAND} -E copy_if_different "${SOVKIT_RUNTIME}" "${runtime_destination}/${SOVKIT_RUNTIME_NAME}"
-      DEPENDS sovkit-devtools "${SOVKIT_RUNTIME}" VERBATIM)
+      DEPENDS "${SOVKIT_RUNTIME}" VERBATIM)
+    add_dependencies(sovkit-devtools devtools-stage-sdk)
     # Keep a Debug SDK's matching symbols beside the copied DLL for native debugging.
     get_filename_component(sdk_runtime_dir "${SOVKIT_RUNTIME}" DIRECTORY)
     if(WIN32 AND EXISTS "${sdk_runtime_dir}/libsovkit.pdb")
@@ -100,6 +103,7 @@ if(DEVTOOLS_BUILD_GUI)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "${sdk_runtime_dir}/libsovkit.pdb"
           "$<TARGET_FILE_DIR:sovkit-devtools>/libsovkit.pdb"
         DEPENDS devtools-stage-sdk "${sdk_runtime_dir}/libsovkit.pdb" VERBATIM)
+      add_dependencies(sovkit-devtools devtools-stage-sdk-symbols)
     endif()
   endif()
   install(TARGETS sovkit-devtools BUNDLE DESTINATION . RUNTIME DESTINATION .)

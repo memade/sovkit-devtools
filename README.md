@@ -70,16 +70,28 @@ python3 scripts/build.py macos-arm64-debug --sdk /absolute/path/sdk --test
 
 Open `.build/macos-arm64-debug/sovkit-devtools.app` on macOS. Use `macos-arm64-release --test --package` for a local Release ZIP.
 
-On Windows, run in an **x64 Developer PowerShell**:
+On Windows, use **Visual Studio 2026** with Desktop development with C++, CMake 4.2+, Python 3.8+, and vcpkg. CMake and Python must be on PATH. Set the `VCPKG_ROOT` and `SOVKIT_SDK_ROOT` user environment variables in Windows, then reopen applications. Double-click [`scripts/build-vs2026.bat`](scripts/build-vs2026.bat) to generate and open `out/sovkit-devtools.slnx`. Select **Debug / x64**, build the solution, set breakpoints, and press **F5**. If needed, right-click `sovkit-devtools` and select **Set as Startup Project**. Older CMake versions may generate `.sln` instead; the script recognizes both formats. This workflow does not require Ninja or PowerShell.
 
-```powershell
-$env:VCPKG_ROOT = "C:/tools/vcpkg"
-python scripts/build.py windows-x64-debug --sdk C:/SDK --test
+The script falls back to `%USERPROFILE%/vcpkg` and `.sdk/windows-x64-current` when the corresponding variables are unset. It preserves existing build directories. Alternatively, use ordinary **CMD** from the repository root, following the same preset workflow as OrbitBridge:
+
+```bat
+set "VCPKG_ROOT=C:\path\to\vcpkg"
+set "SOVKIT_SDK_ROOT=C:\SDK"
+cmake --preset windows-debug
+cmake --build --preset windows-debug
+ctest --preset windows-debug
+
+cmake --preset windows-release
+cmake --build --preset windows-release
 ```
+
+Build individual targets with `cmake --build --preset windows-debug --target sovkit-devtools` or `--target sovkit-console`. Both configurations share the `out/` solution; executables go to `out/Debug/` or `out/Release/`. GUI builds copy the selected SDK DLL and matching PDB when present. Selecting Release does not rebuild or switch the SDK; provide the intended SDK package. Stop the application before replacing its SDK.
+
+The existing `windows-x64-debug` / `windows-x64-release` Ninja presets still use `scripts/build.py` from an x64 developer shell. Use CMake directly or Visual Studio for the new `windows-debug` / `windows-release` presets, not `build.py`.
 
 On Linux, use `linux-x64-debug` or `linux-arm64-debug`. Install the compiler and wxGTK development dependencies first; for Debian/Ubuntu these typically include `build-essential ninja-build pkg-config libgtk-3-dev libx11-dev libgl1-mesa-dev libglu1-mesa-dev`.
 
-Build outputs go under `.build/<preset>/`. Windows/Linux produce a `sovkit-devtools` executable with the platform's usual extension. SDK binaries must match the target OS and architecture; an Android `.so` is not a Linux desktop SDK.
+Ninja build outputs go under `.build/<preset>/`; Visual Studio outputs go under `out/<configuration>/`. Windows/Linux produce a `sovkit-devtools` executable with the platform's usual extension. SDK binaries must match the target OS and architecture; an Android `.so` is not a Linux desktop SDK.
 
 For existing dependency installations, configure with `-DSOVKIT_SDK_ROOT=/path/sdk` and `-DCMAKE_PREFIX_PATH=/path/dependencies`. Set `-DDEVTOOLS_BUILD_GUI=OFF` to build only the console and integration tests. Local packages are not a signed or notarized public release.
 

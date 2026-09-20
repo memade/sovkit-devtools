@@ -46,11 +46,43 @@ python3 scripts/build.py macos-arm64-debug --sdk /absolute/path/sdk --test
 python3 scripts/build.py macos-arm64-release --sdk /absolute/path/sdk --test --package
 ```
 
-Windows：在 x64 Developer PowerShell 中设置 `$env:VCPKG_ROOT`，使用 `python scripts/build.py windows-x64-debug --sdk C:/SDK --test`。Linux：使用 `linux-x64-debug`，先安装编译器及 wxGTK 所需开发包，例如 Debian/Ubuntu 的 `build-essential ninja-build pkg-config libgtk-3-dev libx11-dev libgl1-mesa-dev libglu1-mesa-dev`。其他预设见 CMakePresets.json；跨架构必须提供匹配 SDK。
+Windows 的 Visual Studio 解决方案构建见下节。Linux：使用 `linux-x64-debug`，先安装编译器及 wxGTK 所需开发包，例如 Debian/Ubuntu 的 `build-essential ninja-build pkg-config libgtk-3-dev libx11-dev libgl1-mesa-dev libglu1-mesa-dev`。其他预设见 CMakePresets.json；跨架构必须提供匹配 SDK。
 
 构建目录独立为 `.build/<preset>/`，不会向源码目录生成代码。macOS 启动 `.build/<preset>/sovkit-devtools.app`；Windows/Linux 启动相应可执行文件。`--package` 生成本地 zip，不执行签名、公证、上传或发布。分发前需在目标系统验证工具链运行库及签名要求。
 
 已有系统依赖时可直接 `cmake -S . -B .build/local -DSOVKIT_SDK_ROOT=/path/sdk -DCMAKE_PREFIX_PATH=/path/dependencies`；无 GUI 的自动化接入层可加 `-DDEVTOOLS_BUILD_GUI=OFF`。依赖路径由调用者传入，不含开发者机器绝对路径。
+
+### Windows：Visual Studio 2026 解决方案
+
+采用与 OrbitBridge 相同的 CMake Visual Studio 生成器。安装 Visual Studio 2026 的“使用 C++ 的桌面开发”、CMake ≥4.2、Python ≥3.8 和 vcpkg；CMake、Python 需在 PATH 中。此方式不需要 Ninja 或 PowerShell。
+
+**鼠标操作：** 在 Windows“编辑账户的环境变量”中设置 `VCPKG_ROOT`（vcpkg 根目录）与 `SOVKIT_SDK_ROOT`（独立 SDK 根目录），然后重新打开相关程序。双击 [`scripts/build-vs2026.bat`](scripts/build-vs2026.bat)，等待依赖安装、配置完成，脚本会打开 `out/sovkit-devtools.slnx`。选择 **Debug / x64**，执行“生成解决方案”，在 `src/app.cpp` 或 `src/sdk.cpp` 下断点并按 **F5**。若启动项不是 `sovkit-devtools`，右键该项目选择“设为启动项目”。较早版本的 CMake 可能生成 `.sln`，脚本兼容两种格式。
+
+未设置环境变量时，双击脚本会尝试 `%USERPROFILE%/vcpkg` 和仓库下 `.sdk/windows-x64-current`。它只生成并打开解决方案，不删除已有构建。若需手动打开，直接双击 `out/sovkit-devtools.slnx`。
+
+也可在仓库根目录使用普通 **CMD**，按 OrbitBridge 的预设命令构建（将示例路径换成实际路径）：
+
+```bat
+set "VCPKG_ROOT=C:\path\to\vcpkg"
+set "SOVKIT_SDK_ROOT=C:\SDK"
+cmake --preset windows-debug
+cmake --build --preset windows-debug
+ctest --preset windows-debug
+
+cmake --preset windows-release
+cmake --build --preset windows-release
+```
+
+常用目标：
+
+```bat
+cmake --build --preset windows-debug --target sovkit-devtools
+cmake --build --preset windows-debug --target sovkit-console
+```
+
+Debug/Release 共用 `out/` 解决方案，程序分别输出到 `out/Debug/` 和 `out/Release/`。GUI 构建会复制选定 SDK 的 DLL 和存在的匹配 PDB；切换工具配置不会自动更换 SDK 构建类型。调试 DLL 内部需要匹配的 SDK PDB 和源码。修改 SDK 后，退出工具并更新独立 SDK 包，再重新构建。
+
+原有 `windows-x64-debug` / `windows-x64-release` 仍为 Ninja 预设，使用 `scripts/build.py`，输出到 `.build/<preset>/`。新的 `windows-debug` / `windows-release` 请使用上述 CMake 命令或 Visual Studio，不经过 `build.py`。
 
 ## 第一次手测
 
@@ -73,7 +105,7 @@ DevTools 自有代码采用 [MIT](LICENSE) 许可；libwxui 保留 [上游 MIT �
 
 ## Windows SDK 手动调试
 
-在 x64 Developer PowerShell 中：
+推荐使用上面的 Visual Studio 解决方案方式。以下为保留的 Ninja 构建方式，在 x64 Developer PowerShell 中：
 
 ```powershell
 $env:VCPKG_ROOT = 'C:/path/to/vcpkg'
