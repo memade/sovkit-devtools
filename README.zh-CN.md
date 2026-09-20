@@ -27,12 +27,14 @@
 
 **SDK 来源**：默认使用 [`3rdparty/sovkit_sdk/0.1.0`](3rdparty/sovkit_sdk/0.1.0) 中由 SovKit 提供的发行文件，原样读取，不由 DevTools 构建、下载或改写。SDK 行为、接口语义、兼容性及许可均以 SovKit 项目和[随包接入文档](3rdparty/sovkit_sdk/0.1.0/SDK_INTEGRATION.md)为准；工具中的请求模板仅是调试示例。
 
-需要 CMake ≥3.25、Ninja、Python ≥3.8、C++20 工具链、vcpkg。当前提供 Windows 动态库；其他平台需另选 SovKit 提供的匹配包。
+需要 CMake ≥3.25、Ninja、Python ≥3.8、C++20 工具链、vcpkg。当前提供 Windows 和 macOS arm64 动态库；Linux 动态库交付后放入同一目录。
 
 ```text
 3rdparty/sovkit_sdk/0.1.0/
   sovkit.h
   libsovkit.dll
+  libsovkit.dylib       # macOS arm64
+  libsovkit.so          # Linux：交付后添加，构建前需存在
   SDK_INTEGRATION.md
 ```
 
@@ -42,13 +44,55 @@
 git clone https://github.com/memade/sovkit-devtools.git
 cd sovkit-devtools
 export VCPKG_ROOT=/path/to/vcpkg
-python3 scripts/build.py macos-arm64-debug --sdk /absolute/path/sdk --test
-python3 scripts/build.py macos-arm64-release --sdk /absolute/path/sdk --test --package
 ```
 
-Windows 的 Visual Studio 解决方案构建见下节。Linux：使用 `linux-x64-debug`，先安装编译器及 wxGTK 所需开发包，例如 Debian/Ubuntu 的 `build-essential ninja-build pkg-config libgtk-3-dev libx11-dev libgl1-mesa-dev libglu1-mesa-dev`。其他预设见 CMakePresets.json；跨架构必须提供匹配 SDK。
+统一使用与 OrbitBridge 相同的 `cmake --preset` / `cmake --build --preset` 命令。CMake 按平台从默认目录选择 `.dll`、`.dylib` 或 `.so`，复制到 GUI 可执行文件旁，启动时自动按可执行文件所在目录加载，不依赖终端的工作目录。macOS 中两者均位于 `sovkit-devtools.app/Contents/MacOS/`。删除 `.build` 后仍使用此默认 SDK，无需重新指定路径。资源嵌入和 API 绑定生成仍需 Python。
 
-构建目录独立为 `.build/<preset>/`，不会向源码目录生成代码。macOS 启动 `.build/<preset>/sovkit-devtools.app`；Windows/Linux 启动相应可执行文件。`--package` 生成本地 zip，不执行签名、公证、上传或发布。分发前需在目标系统验证工具链运行库及签名要求。
+### macOS 构建
+
+默认使用目录中的 arm64 动态库。CMake 会在 vcpkg 探测编译器之前，自动选择当前 Xcode/Command Line Tools 对应的系统 SDK，无需手动导出 `SDKROOT`；显式设置的 `CMAKE_OSX_SYSROOT`（包括缓存选择）优先于 `SDKROOT`。
+
+```sh
+cmake --preset macos-arm64-debug
+cmake --build --preset macos-arm64-debug
+ctest --preset macos-arm64-debug
+
+cmake --preset macos-arm64-release
+cmake --build --preset macos-arm64-release
+```
+
+Intel Mac 使用 `macos-x64-debug` / `macos-x64-release`，首次配置时选择匹配的 x64 SDK。
+
+```sh
+cmake --build --preset macos-arm64-debug --target sovkit-devtools
+cmake --build --preset macos-arm64-debug --target sovkit-console
+open .build/macos-arm64-debug/sovkit-devtools.app
+```
+
+### Linux 构建
+
+先安装编译器及 wxGTK 所需开发包，例如 Debian/Ubuntu 的 `build-essential ninja-build pkg-config libgtk-3-dev libx11-dev libgl1-mesa-dev libglu1-mesa-dev`。将 SovKit 交付的匹配架构动态库放入 `3rdparty/sovkit_sdk/0.1.0/libsovkit.so` 后，执行：
+
+```sh
+cmake --preset linux-debug
+cmake --build --preset linux-debug
+ctest --preset linux-debug
+
+cmake --preset linux-release
+cmake --build --preset linux-release
+```
+
+`linux-debug` / `linux-release` 与 OrbitBridge 的名称一致，目标架构为 x64；原有 `linux-x64-debug` / `linux-x64-release` 继续可用。各预设拥有独立构建目录和 SDK 缓存。ARM64 Linux 使用 `linux-arm64-debug` / `linux-arm64-release` 并选择匹配 SDK。GUI 测试需要图形会话。
+
+使用 `cmake --list-presets=all` 查看配置、构建和测试预设。Ninja 预设仍可使用可选的一键入口 `python3 scripts/build.py <preset> --sdk /path/sdk --test`。
+
+Ninja 构建目录为 `.build/<preset>/`，Visual Studio 为 `out/<configuration>/`。macOS 启动 `.build/<preset>/sovkit-devtools.app`；Windows/Linux 启动相应可执行文件。macOS Release 构建完成后，可生成本地 ZIP：
+
+```sh
+cpack --config .build/macos-arm64-release/CPackConfig.cmake -B .build/packages
+```
+
+打包不执行签名、公证、上传或发布。分发前需在目标系统验证工具链运行库及签名要求。
 
 已有系统依赖时可直接 `cmake -S . -B .build/local -DSOVKIT_SDK_ROOT=/path/sdk -DCMAKE_PREFIX_PATH=/path/dependencies`；无 GUI 的自动化接入层可加 `-DDEVTOOLS_BUILD_GUI=OFF`。依赖路径由调用者传入，不含开发者机器绝对路径。
 
@@ -83,7 +127,7 @@ cmake --build --preset windows-debug --target sovkit-console
 
 Debug/Release 共用 `out/` 解决方案，程序分别输出到 `out/Debug/` 和 `out/Release/`。GUI 构建只原样复制选定 SDK 的 DLL，以及 SovKit 随包提供的匹配 PDB（如有）。Debug/Release 只控制 DevTools；SDK 升级由 SovKit 交付新的完整包，退出工具后更换包并重新构建。
 
-原有 `windows-x64-debug` / `windows-x64-release` 仍为 Ninja 预设，使用 `scripts/build.py`，输出到 `.build/<preset>/`。新的 `windows-debug` / `windows-release` 请使用上述 CMake 命令或 Visual Studio，不经过 `build.py`。
+原有 `windows-x64-debug` / `windows-x64-release` 仍为 Ninja 预设，也支持配置、构建和测试的 preset 命令，或在 x64 开发者终端使用 `scripts/build.py`，输出到 `.build/<preset>/`。`windows-debug` / `windows-release` 请使用上述 CMake 命令或 Visual Studio，不经过 `build.py`。
 
 ## 发布文件与资源
 
@@ -102,7 +146,7 @@ cpack --config out/CPackConfig.cmake -C Release -B .build/packages
 
 ## 第一次手测
 
-1. Windows 启动时自动读取 exe 所在目录的 `libsovkit.dll` 并查询版本和能力，不依赖工作目录；缺失时可手动选择。自动加载不启动身份或网络操作。两台电脑输入不同设备名。临时模式留空测试目录；要复现重启恢复则各选一个空目录并设置密码。
+1. 启动时自动读取可执行文件旁的平台动态库（`libsovkit.dll`、`libsovkit.dylib` 或 `libsovkit.so`）并查询版本和能力，不依赖工作目录；缺失时可手动选择。自动加载不启动身份或网络操作。两台电脑输入不同设备名。临时模式留空测试目录；要复现重启恢复则各选一个空目录并设置密码。
 2. 点击“启动身份”，执行 `discovery_start`、`discovery_list`。从候选复制 `address` 与 `pairingPort` 到一端的 `pairing_start`。
 3. 两端执行 `pairing_status`，当面核对 `safetyCode`（SAS），分别执行 `pairing_confirm`。确认关系出现在 `relationship_list`。
 4. 把关系 ID 填进 `message_send`；接收端查看事件和 `message_list`。文件使用“选择发送文件”，接收端 `transfer_list` → `transfer_decide` 选择接收目录并接受。

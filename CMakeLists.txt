@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
+include(cmake/MacOSSdk.cmake)
 project(sovkit-devtools VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -65,11 +66,8 @@ if(DEVTOOLS_BUILD_GUI)
     MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
     MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}")
   if(DEVTOOLS_BUNDLE_SDK)
-    if(APPLE)
-      set(runtime_destination "$<TARGET_BUNDLE_CONTENT_DIR:sovkit-devtools>/Frameworks")
-    else()
-      set(runtime_destination "$<TARGET_FILE_DIR:sovkit-devtools>")
-    endif()
+    # All platforms load the SDK beside the executable (Contents/MacOS in .app).
+    set(runtime_destination "$<TARGET_FILE_DIR:sovkit-devtools>")
     add_custom_target(devtools-stage-sdk ALL
       COMMAND ${CMAKE_COMMAND} -E make_directory "${runtime_destination}"
       COMMAND ${CMAKE_COMMAND} -E copy_if_different "${SOVKIT_RUNTIME}" "${runtime_destination}/${SOVKIT_RUNTIME_NAME}"
@@ -87,7 +85,8 @@ if(DEVTOOLS_BUILD_GUI)
   endif()
   install(TARGETS sovkit-devtools BUNDLE DESTINATION . RUNTIME DESTINATION .)
 endif()
-if(DEVTOOLS_BUNDLE_SDK)
+if(DEVTOOLS_BUNDLE_SDK AND (NOT APPLE OR NOT DEVTOOLS_BUILD_GUI))
+  # macOS GUI bundles already contain their SDK next to the executable.
   install(FILES "${SOVKIT_RUNTIME}" DESTINATION .)
 endif()
 if(BUILD_TESTING)

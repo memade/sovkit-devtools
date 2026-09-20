@@ -44,7 +44,7 @@ Tests cover pairing confirmation, message delivery, exact file bytes, encrypted 
 
 ### 1. Obtain a matching SDK package
 
-The default SDK is the SovKit-supplied package in [`3rdparty/sovkit_sdk/0.1.0`](3rdparty/sovkit_sdk/0.1.0). It currently contains the Windows DLL, public header and [SDK integration guide](3rdparty/sovkit_sdk/0.1.0/SDK_INTEGRATION.md). DevTools consumes these files unchanged; SovKit defines SDK behavior, compatibility and licensing. UI request templates are examples, not a separate SDK specification. DevTools neither builds nor downloads the SDK. Obtain matching packages for other platforms from SovKit.
+All platforms default to the SovKit-supplied package in [`3rdparty/sovkit_sdk/0.1.0`](3rdparty/sovkit_sdk/0.1.0). It currently contains the Windows DLL, macOS arm64 dylib, public header and [SDK integration guide](3rdparty/sovkit_sdk/0.1.0/SDK_INTEGRATION.md). Add the matching Linux library to the same directory when supplied. DevTools consumes these files unchanged; SovKit defines SDK behavior, compatibility and licensing. UI request templates are examples, not a separate SDK specification. DevTools neither builds nor downloads the SDK.
 
 Use a 0.1.0 SDK with ABI 25 and `sovkit_info().keystoreDetachVersion >= 1`. A library without this capability can be inspected, but test identities will not start.
 
@@ -52,6 +52,8 @@ Use a 0.1.0 SDK with ABI 25 and `sovkit_info().keystoreDetachVersion >= 1`. A li
 3rdparty/sovkit_sdk/0.1.0/
   sovkit.h
   libsovkit.dll         # Supplied Windows library
+  libsovkit.dylib       # Supplied macOS arm64 library
+  libsovkit.so          # Linux: add the supplied library before building
   SDK_INTEGRATION.md    # SovKit's authoritative integration guide
 ```
 
@@ -65,10 +67,43 @@ Install CMake 3.25+, Ninja, Python 3, a C++20 toolchain, and [vcpkg](https://git
 git clone https://github.com/memade/sovkit-devtools.git
 cd sovkit-devtools
 export VCPKG_ROOT=/path/to/vcpkg
-python3 scripts/build.py macos-arm64-debug --sdk /absolute/path/sdk --test
 ```
 
-Open `.build/macos-arm64-debug/sovkit-devtools.app` on macOS. Use `macos-arm64-release --test --package` for a local Release ZIP.
+Use the same configure/build pairs as OrbitBridge. CMake selects `libsovkit.dll`, `libsovkit.dylib` or `libsovkit.so` from the default package for the target platform and copies it beside the GUI executable. Startup loads that copy using the executable's directory, independently of the working directory. On macOS both files reside in `sovkit-devtools.app/Contents/MacOS/`. Deleting `.build` does not lose the default SDK selection. Python is still needed to generate embedded resources and API bindings.
+
+#### macOS
+
+The supplied arm64 library is selected automatically. CMake also selects the system SDK from the active Xcode/Command Line Tools installation before vcpkg probes its compiler. No manual `SDKROOT` export is needed; an explicit `CMAKE_OSX_SYSROOT` (including a cached selection) takes precedence over `SDKROOT`.
+
+```sh
+cmake --preset macos-arm64-debug
+cmake --build --preset macos-arm64-debug
+ctest --preset macos-arm64-debug
+
+cmake --preset macos-arm64-release
+cmake --build --preset macos-arm64-release
+```
+
+Intel Macs use `macos-x64-debug` / `macos-x64-release`, with an x64 SDK. Build an individual target with `cmake --build --preset macos-arm64-debug --target sovkit-devtools` or `--target sovkit-console`. Open `.build/macos-arm64-debug/sovkit-devtools.app`.
+
+#### Linux
+
+Install the compiler and wxGTK development dependencies first; for Debian/Ubuntu these typically include `build-essential ninja-build pkg-config libgtk-3-dev libx11-dev libgl1-mesa-dev libglu1-mesa-dev`. Place SovKit's matching Linux library at `3rdparty/sovkit_sdk/0.1.0/libsovkit.so`, then use:
+
+```sh
+cmake --preset linux-debug
+cmake --build --preset linux-debug
+ctest --preset linux-debug
+
+cmake --preset linux-release
+cmake --build --preset linux-release
+```
+
+`linux-debug` / `linux-release` target x64, matching OrbitBridge's names. The existing `linux-x64-debug` / `linux-x64-release` names remain available; each preset has its own build directory and SDK cache. ARM64 Linux uses `linux-arm64-debug` / `linux-arm64-release` with an arm64 SDK. GUI tests require a graphical session.
+
+List presets with `cmake --list-presets=all`. The optional `scripts/build.py <preset> --sdk /path/sdk --test` wrapper remains available for Ninja presets. For a local macOS Release ZIP, build Release and run `cpack --config .build/macos-arm64-release/CPackConfig.cmake -B .build/packages`.
+
+#### Windows
 
 On Windows, use **Visual Studio 2026** with Desktop development with C++, CMake 4.2+, Python 3.8+, and vcpkg. CMake and Python must be on PATH. Set the `VCPKG_ROOT` user environment variable in Windows, then reopen applications. The supplied SDK is selected by default. Double-click [`scripts/build-vs2026.bat`](scripts/build-vs2026.bat) to generate and open `out/sovkit-devtools.slnx`. Select **Debug / x64**, build the solution, set breakpoints, and press **F5**. If needed, right-click `sovkit-devtools` and select **Set as Startup Project**. Older CMake versions may generate `.sln` instead; the script recognizes both formats. This workflow does not require Ninja or PowerShell.
 
@@ -110,9 +145,7 @@ CMake defaults to `3rdparty/sovkit_sdk/0.1.0` and migrates the former built-in `
 
 Build individual targets with `cmake --build --preset windows-debug --target sovkit-devtools` or `--target sovkit-console`. Both configurations share the `out/` solution; executables go to `out/Debug/` or `out/Release/`. GUI builds copy the selected SDK DLL unchanged, plus a matching PDB only if SovKit supplied one. Debug/Release changes only the DevTools build; the supplied SDK remains unchanged. Stop the application before replacing its SDK.
 
-The existing `windows-x64-debug` / `windows-x64-release` Ninja presets still use `scripts/build.py` from an x64 developer shell. Use CMake directly or Visual Studio for the new `windows-debug` / `windows-release` presets, not `build.py`.
-
-On Linux, use `linux-x64-debug` or `linux-arm64-debug`. Install the compiler and wxGTK development dependencies first; for Debian/Ubuntu these typically include `build-essential ninja-build pkg-config libgtk-3-dev libx11-dev libgl1-mesa-dev libglu1-mesa-dev`.
+The existing `windows-x64-debug` / `windows-x64-release` Ninja presets also support the configure/build/test commands above or `scripts/build.py` from an x64 developer shell. Use CMake directly or Visual Studio for the `windows-debug` / `windows-release` presets, not `build.py`.
 
 Ninja build outputs go under `.build/<preset>/`; Visual Studio outputs go under `out/<configuration>/`. Windows/Linux produce a `sovkit-devtools` executable with the platform's usual extension. SDK binaries must match the target OS and architecture; an Android `.so` is not a Linux desktop SDK.
 
@@ -136,7 +169,7 @@ test executables or old build artifacts.
 
 ### 3. Run a two-device experiment
 
-1. On Windows, startup automatically loads `libsovkit.dll` beside the executable and queries its capabilities, independently of the working directory. If absent, use the SDK picker. Loading does not start an identity or network operation. On each computer, choose a different device name. Leave the profile directory empty for a temporary identity, or choose a separate empty directory and password for persistence.
+1. Startup automatically loads the platform SDK beside the executable (`libsovkit.dll`, `libsovkit.dylib` or `libsovkit.so`) and queries its capabilities, independently of the working directory. If absent, use the SDK picker. Loading does not start an identity or network operation. On each computer, choose a different device name. Leave the profile directory empty for a temporary identity, or choose a separate empty directory and password for persistence.
 2. Start the identity, then run `discovery_start` and `discovery_list`.
 3. Copy a candidate's `address` and `pairingPort` into `pairing_start`. Inspect `pairing_status` on both sides, compare `safetyCode`, and run `pairing_confirm` on both peers.
 4. Use the resulting relationship ID in `message_send`. Inspect events on the receiver. For files, select a source file and explicitly accept the transfer into a chosen destination directory on the receiver.

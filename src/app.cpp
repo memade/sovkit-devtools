@@ -190,7 +190,7 @@ namespace devtools {
 #ifdef _WIN32
 			auto bundled = exe.parent_path() / "libsovkit.dll";
 #elif defined(__APPLE__)
-			auto bundled = exe.parent_path().parent_path() / "Frameworks/libsovkit.dylib";
+			auto bundled = exe.parent_path() / "libsovkit.dylib";
 #else
 			auto bundled = exe.parent_path() / "libsovkit.so";
 #endif
