@@ -169,7 +169,7 @@ test executables or old build artifacts.
 
 ### 3. Run a two-device experiment
 
-1. Startup automatically loads the platform SDK beside the executable (`libsovkit.dll`, `libsovkit.dylib` or `libsovkit.so`) and queries its capabilities, independently of the working directory. If absent, use the SDK picker. Loading does not start an identity or network operation. On each computer, choose a different device name. Leave the profile directory empty for a temporary identity, or choose a separate empty directory and password for persistence.
+1. Startup only fills in the full path of the platform SDK beside the executable (`libsovkit.dll`, `libsovkit.dylib` or `libsovkit.so`), independently of the working directory. Select another library if needed, then click "加载并检查" to load it and query capabilities. To debug a Windows SDK, select the DLL beside its matching PDB from the same build; the debugger loads the PDB. Loading does not start an identity or network operation. On each computer, choose a different device name. Leave the profile directory empty for a temporary identity, or choose a separate empty directory and password for persistence.
 2. Start the identity, then run `discovery_start` and `discovery_list`.
 3. Copy a candidate's `address` and `pairingPort` into `pairing_start`. Inspect `pairing_status` on both sides, compare `safetyCode`, and run `pairing_confirm` on both peers.
 4. Use the resulting relationship ID in `message_send`. Inspect events on the receiver. For files, select a source file and explicitly accept the transfer into a chosen destination directory on the receiver.

@@ -146,7 +146,7 @@ cpack --config .build/windows-vs2026-x64/CPackConfig.cmake -C Release -B .build/
 
 ## 第一次手测
 
-1. 启动时自动读取可执行文件旁的平台动态库（`libsovkit.dll`、`libsovkit.dylib` 或 `libsovkit.so`）并查询版本和能力，不依赖工作目录；缺失时可手动选择。自动加载不启动身份或网络操作。两台电脑输入不同设备名。临时模式留空测试目录；要复现重启恢复则各选一个空目录并设置密码。
+1. 启动时仅将可执行文件旁的平台动态库（`libsovkit.dll`、`libsovkit.dylib` 或 `libsovkit.so`）完整路径填入默认值，不依赖工作目录，也不加载 SDK。可先选择其他动态库，再点击“加载并检查”查询版本和能力。调试 Windows SDK 时，选择与 `libsovkit.pdb` 同目录、同次构建的 DLL，PDB 由调试器读取。加载不启动身份或网络操作。两台电脑输入不同设备名。临时模式留空测试目录；要复现重启恢复则各选一个空目录并设置密码。
 2. 点击“启动身份”，执行 `discovery_start`、`discovery_list`。从候选复制 `address` 与 `pairingPort` 到一端的 `pairing_start`。
 3. 两端执行 `pairing_status`，当面核对 `safetyCode`（SAS），分别执行 `pairing_confirm`。确认关系出现在 `relationship_list`。
 4. 把关系 ID 填进 `message_send`；接收端查看事件和 `message_list`。文件使用“选择发送文件”，接收端 `transfer_list` → `transfer_decide` 选择接收目录并接受。
@@ -174,8 +174,8 @@ python scripts/build.py windows-x64-debug --sdk C:/SDK --test
 ```
 
 不需要 SovKit 源码或 `.lib`。默认包包含 sovkit.h、libsovkit.dll 和 SDK_INTEGRATION.md。
-工具构建会将交付库原样复制到 exe 同目录，启动时自动加载；随后可执行 selftest 或手动“启动身份”。
-要换新 SDK，可以选择新的绝对 DLL 路径并重启工具；停止身份不等于卸载 DLL。
+工具构建会将交付库原样复制到 exe 同目录，启动时仅预填完整路径。点击“加载并检查”后，才可执行 selftest 或手动“启动身份”。
+要换新 SDK，重启工具后先选择新的绝对 DLL 路径，再点击加载；停止身份不等于卸载 DLL。
 不要在程序运行中直接覆盖正在加载的 DLL。
 
 未加载错误会给出 Windows 错误码：126 常见于缺依赖，193 常见于架构不匹配。

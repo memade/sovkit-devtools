@@ -19,7 +19,8 @@ ctest --preset windows-debug
 ```
 
 程序为 `.build/windows-vs2026-x64/Debug/sovkit-devtools.exe`，构建会将交付的 DLL 原样复制到同目录。
-启动后自动读取 exe 目录的 `libsovkit.dll`，工作目录不影响 SDK 定位。
+启动时仅将 exe 目录的 `libsovkit.dll` 完整路径填入默认值，不加载 SDK；点击“加载并检查”后才加载，工作目录不影响默认路径。
+调试 SDK 时，先选择与 `libsovkit.pdb` 同目录、同次构建的 `libsovkit.dll`，再点击加载。PDB 由 Visual Studio 调试器加载。
 Debug/Release 只控制 DevTools；SDK 调试信息和对应版本均由 SovKit 提供。
 默认临时测试身份；需要重启恢复时选择独立测试目录和密码。
 停止身份不会卸载 DLL，替换 SDK 后需重新启动程序。

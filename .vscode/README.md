@@ -1,7 +1,7 @@
 # VS Code 构建与调试
 
 用 VS Code 打开仓库根目录，安装推荐的 C/C++、CMake Tools 扩展；macOS 另需 CodeLLDB。
-在“运行和调试”中选择对应平台入口，按 **F5**。启动前会构建项目，SDK 从程序目录自动加载。
+在“运行和调试”中选择对应平台入口，按 **F5**。启动前会构建项目；启动后仅预填程序目录的 SDK 完整路径，点击“加载并检查”才加载。
 “终端 → 运行任务”也可单独执行各平台的 build/test 任务。
 各平台构建任务统一先执行 `cmake --preset <name>`，再执行
 `cmake --build --preset <name> --parallel 4`；测试任务使用 `ctest --preset <name>`。
@@ -16,6 +16,7 @@
 设置 `VCPKG_ROOT` 后重新打开 VS Code，确保 `cmake`、`ctest`、`python` 在 PATH 中。
 默认 SDK 为 `3rdparty/sovkit_sdk/0.1.0`。现有 CMake 缓存中的显式 SDK 选择会保留。
 程序的 PDB 在 `.build/windows-vs2026-x64/Debug`；只有 SovKit 提供匹配 PDB/源码时才能进入 SDK 内部调试。
+调试 SDK 时，通过“选择 SDK…”选择与 `libsovkit.pdb` 同目录、同次构建的 `libsovkit.dll`，再点击“加载并检查”。PDB 由调试器读取，不在 DevTools 中选择 PDB 文件。
 
 ## Linux x64 / arm64（未实机验证）
 
@@ -36,7 +37,7 @@
 保留 **DevTools · macOS Debug**，改用仓库公开的 `macos-arm64-debug` 预设，
 不再依赖未提交的 `local-macos-debug-current`。默认使用 `3rdparty/sovkit_sdk/0.1.0/libsovkit.dylib`；
 应用位于 `.build/macos-arm64-debug/sovkit-devtools.app`。原有 Homebrew PATH 配置保留。
-动态库复制到 `.app/Contents/MacOS/`，程序从自身所在目录自动加载它。
+动态库复制到 `.app/Contents/MacOS/`，该目录的动态库完整路径作为默认值，点击“加载并检查”后才加载。
 设置 `VCPKG_ROOT` 后重新打开 VS Code。CMake 会自动让项目和 vcpkg 使用当前开发工具对应的
 macOS SDK，无需额外设置 `SDKROOT`；也可用 `CMAKE_OSX_SYSROOT` 显式选择系统 SDK。
 
