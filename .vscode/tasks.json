@@ -2,14 +2,142 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "DevTools: configure Windows Debug",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "--preset",
+        "windows-debug"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "DevTools: build Windows Debug",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "windows-debug",
+        "--parallel",
+        "4"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "dependsOn": [
+        "DevTools: configure Windows Debug"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": [
+        "$msCompile"
+      ],
+      "group": "build"
+    },
+    {
+      "label": "DevTools: test Windows Debug",
+      "type": "process",
+      "command": "ctest",
+      "args": [
+        "--preset",
+        "windows-debug"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "dependsOn": [
+        "DevTools: build Windows Debug"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": [],
+      "group": "test"
+    },
+    {
+      "label": "DevTools: build Linux x64 Debug",
+      "type": "process",
+      "command": "python3",
+      "args": [
+        "${workspaceFolder}/scripts/build.py",
+        "linux-x64-debug",
+        "--sdk",
+        "${input:linuxSdkRoot}"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "group": "build"
+    },
+    {
+      "label": "DevTools: test Linux x64 Debug",
+      "type": "process",
+      "command": "ctest",
+      "args": [
+        "--test-dir",
+        "${workspaceFolder}/.build/linux-x64-debug",
+        "--output-on-failure"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "dependsOn": [
+        "DevTools: build Linux x64 Debug"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": [],
+      "group": "test"
+    },
+    {
+      "label": "DevTools: build Linux arm64 Debug",
+      "type": "process",
+      "command": "python3",
+      "args": [
+        "${workspaceFolder}/scripts/build.py",
+        "linux-arm64-debug",
+        "--sdk",
+        "${input:linuxSdkRoot}"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "group": "build"
+    },
+    {
+      "label": "DevTools: test Linux arm64 Debug",
+      "type": "process",
+      "command": "ctest",
+      "args": [
+        "--test-dir",
+        "${workspaceFolder}/.build/linux-arm64-debug",
+        "--output-on-failure"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "dependsOn": [
+        "DevTools: build Linux arm64 Debug"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": [],
+      "group": "test"
+    },
+    {
       "label": "DevTools: build macOS Debug",
       "type": "process",
       "command": "python3",
       "args": [
         "${workspaceFolder}/scripts/build.py",
-        "local-macos-debug-current",
+        "macos-arm64-debug",
         "--sdk",
-        "${workspaceFolder}/.sdk/macos-arm64-current"
+        "${input:macosSdkRoot}"
       ],
       "options": {
         "cwd": "${workspaceFolder}",
@@ -17,11 +145,24 @@
           "PATH": "/opt/homebrew/bin:/usr/local/bin:${env:PATH}"
         }
       },
-      "problemMatcher": ["$gcc"],
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      }
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "group": "build"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "linuxSdkRoot",
+      "type": "promptString",
+      "description": "SovKit Linux SDK package matching this machine (libsovkit.so + sovkit.h + integration guide)",
+      "default": "3rdparty/sovkit_sdk/0.1.0"
+    },
+    {
+      "id": "macosSdkRoot",
+      "type": "promptString",
+      "description": "SovKit macOS arm64 SDK package (libsovkit.dylib + sovkit.h + integration guide)",
+      "default": "3rdparty/sovkit_sdk/0.1.0"
     }
   ]
 }
