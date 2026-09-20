@@ -35,6 +35,8 @@ public:
 
     // ── Geometry ─────────────────────────────────────────────────────────
     [[nodiscard]] wxRect GetRect()       const { return rect_; }
+    [[nodiscard]] int GetWidth() const { return rect_.width; }
+    [[nodiscard]] int GetHeight() const { return rect_.height; }
     [[nodiscard]] wxRect GetPadding()    const { return padding_; }
     [[nodiscard]] wxSize GetFixedSize()  const { return fixedSize_; }
     [[nodiscard]] wxSize GetMinSize()    const { return minSize_; }

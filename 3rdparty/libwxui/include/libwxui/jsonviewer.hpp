@@ -9,6 +9,7 @@
 #include <string_view>
 
 namespace wxui {
+class TextEditor;
 
 enum class JsonViewMode {
     Raw,
@@ -43,14 +44,14 @@ private:
     void InvalidateRenderedControls();
     void RenderActiveText();
     void RefreshText();
-    void SetTextCtrlValue(wxTextCtrl* ctrl, const wxString& text);
-    void ApplyJsonHighlight(wxTextCtrl* ctrl, const wxString& text);
-    wxTextCtrl* ActiveTextCtrl() const;
+    void SetTextCtrlValue(TextEditor* ctrl, const wxString& text);
+    void ApplyJsonHighlight(TextEditor* ctrl, const wxString& text);
+    TextEditor* ActiveTextCtrl() const;
     bool& ActiveRenderedFlag();
     const std::string& TextForMode(JsonViewMode mode);
 
-    wxTextCtrl* wrappedCtrl_ = nullptr;
-    wxTextCtrl* nowrapCtrl_ = nullptr;
+    TextEditor* wrappedCtrl_ = nullptr;
+    TextEditor* nowrapCtrl_ = nullptr;
     std::string rawJson_;
     std::string displayedText_;
     std::string prettyJson_;

@@ -140,6 +140,7 @@ void TreeView::AddRoot(std::shared_ptr<TreeNode> node) {
 }
 
 void TreeView::RemoveAllRoots() {
+    UnselectAll();
     if (manager_) {
         for (const auto& root : roots_) {
             manager_->ForgetControlTree(root.get());
@@ -148,6 +149,8 @@ void TreeView::RemoveAllRoots() {
     roots_.clear();
     flatList_.clear();
     children_.clear();
+    ScrollToTop();
+    DoLayout(rect_);
     Invalidate();
 }
 
@@ -181,6 +184,8 @@ void TreeView::FlattenNode(TreeNode* node,
 }
 
 void TreeView::BuildFlatList() {
+    TreeNode* selected = GetVisibleNode(GetCurSel());
+    UnselectAll();
     flatList_.clear();
     children_.clear();  // reset container children to flat visible nodes
 
@@ -190,10 +195,10 @@ void TreeView::BuildFlatList() {
     // Add flat nodes as container children so DoLayout / DoPaint sees them
     for (int i = 0; i < static_cast<int>(flatList_.size()); ++i) {
         flatList_[i]->SetIndex(i);
-        flatList_[i]->SetManager(manager_);
+        flatList_[i]->SetFixedHeight(flatList_[i]->GetItemHeight());
         // Wrap in shared_ptr with a no-op deleter (nodes owned by roots_)
-        children_.push_back(std::shared_ptr<TreeNode>(flatList_[i],
-                                                       [](TreeNode*) {}));
+        Add(std::shared_ptr<TreeNode>(flatList_[i], [](TreeNode*) {}));
+        if (flatList_[i] == selected) SelectItem(i, false);
     }
 }
 
@@ -203,7 +208,53 @@ void TreeView::DoLayout(const wxRect& rc) {
 }
 
 void TreeView::DoPaint(wxDC& dc, const wxRect& clipRect) {
-    Container::DoPaint(dc, clipRect);
+    List::DoPaint(dc, clipRect);
+}
+
+bool TreeNode::OnKeyDown(int keyCode) {
+    auto* tree = dynamic_cast<TreeView*>(ownerList_);
+    return tree && tree->OnKeyDown(keyCode);
+}
+
+bool TreeView::OnKeyDown(int keyCode) {
+    if (flatList_.empty()) return false;
+    int index = GetCurSel();
+    auto* node = GetVisibleNode(index);
+    switch (keyCode) {
+        case WXK_DOWN: index = std::min(index + 1, static_cast<int>(flatList_.size()) - 1); break;
+        case WXK_UP: index = std::max(0, index - 1); break;
+        case WXK_HOME: index = 0; break;
+        case WXK_END: index = static_cast<int>(flatList_.size()) - 1; break;
+        case WXK_RIGHT:
+            if (!node) index = 0;
+            else if (!node->GetTreeChildren().empty()) {
+                if (!node->IsExpanded()) node->SetExpanded(true);
+                else ++index;
+            }
+            break;
+        case WXK_LEFT:
+            if (!node) index = 0;
+            else if (node->IsExpanded() && !node->GetTreeChildren().empty()) node->SetExpanded(false);
+            else if (node->GetLevel() > 0) {
+                while (index > 0 && flatList_[index]->GetLevel() >= node->GetLevel()) --index;
+            }
+            break;
+        case WXK_RETURN:
+        case WXK_NUMPAD_ENTER:
+            if (node) ActivateItem(index);
+            return true;
+        default: return false;
+    }
+    SelectItem(index);
+    if (auto* selected = GetVisibleNode(index)) {
+        const auto viewport = GetItemViewportRect();
+        const auto rect = selected->GetRect();
+        if (rect.GetTop() < viewport.GetTop())
+            RestoreListScrollPos(GetListScrollPos() + rect.GetTop() - viewport.GetTop());
+        else if (rect.GetBottom() > viewport.GetBottom())
+            RestoreListScrollPos(GetListScrollPos() + rect.GetBottom() - viewport.GetBottom());
+    }
+    return true;
 }
 
 } // namespace wxui

@@ -102,6 +102,8 @@ class Application : public wxApp {
 public:
   bool OnInit() override;
   int OnExit() override;
+  void SetName(const std::string& name);
+  std::vector<std::string> Arguments() const;
 
 protected:
   using ResourceLoader = UIManager::ResourceLoader;
@@ -155,6 +157,7 @@ public:
   UIManager *GetUIManager() override {
     return uiManager_;
   }
+  bool LoadContentXml(const std::string& xml);
   bool LoadContent(const std::string &resourceRoot,
                    const std::string &xmlPath) override;
 
@@ -206,3 +209,6 @@ private:
 std::unique_ptr<FrameHost> CreateFrameHost(const FrameSpec &spec);
 
 } // namespace wxui
+
+// Native platform entry points stay inside libwxui.
+#define WXUI_IMPLEMENT_APPLICATION(AppClass) wxIMPLEMENT_APP(AppClass)

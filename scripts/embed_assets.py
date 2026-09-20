@@ -7,9 +7,13 @@ parser = argparse.ArgumentParser()
 parser.add_argument('banner', type=Path)
 parser.add_argument('documentation', type=Path)
 parser.add_argument('output', type=Path)
+parser.add_argument('--workbench', type=Path)
 args = parser.parse_args()
 lines = ['#pragma once']
-for name, source in [('kBanner', args.banner), ('kSdkDocs', args.documentation)]:
+assets = [('kBanner', args.banner), ('kSdkDocs', args.documentation)]
+if args.workbench:
+    assets.append(('kWorkbench', args.workbench))
+for name, source in assets:
     data = source.read_text(encoding='utf-8').encode('utf-8')
     lines.append('inline constexpr char ' + name + '[] =')
     # Short ASCII-only tokens avoid both source-codepage issues and a raw

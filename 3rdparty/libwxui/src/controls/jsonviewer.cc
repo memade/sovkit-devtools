@@ -1,4 +1,6 @@
 #include <libwxui.hpp>
+#include <libwxui/text_editor.hpp>
+#include <libwxui/appearance.hpp>
 
 #include <rapidjson/document.h>
 #include <rapidjson/prettywriter.h>
@@ -11,8 +13,6 @@
 
 namespace wxui {
 namespace {
-
-constexpr std::size_t kMaxHighlightedChars = 512 * 1024;
 
 std::string JsonToText(const rapidjson::Value& value, bool pretty) {
     rapidjson::StringBuffer buffer;
@@ -61,38 +61,7 @@ wxColour ResolveJsonTextColor(UIManager* manager, const wxColour& requested) {
     return *wxWHITE;
 }
 
-wxFont ResolveJsonFont(UIManager* manager) {
-    wxFont base = manager ? manager->GetUIFont() : wxFont{};
-    wxFontInfo info(base.IsOk() && base.GetPointSize() > 0 ? base.GetPointSize() : 10);
-    info.Family(wxFONTFAMILY_TELETYPE);
-    return wxFont(info);
-}
-
-bool IsJsonWhitespace(wxChar ch) {
-    return ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n';
-}
-
-bool IsNumberStart(wxChar ch) {
-    return ch == '-' || (ch >= '0' && ch <= '9');
-}
-
-bool IsNumberChar(wxChar ch) {
-    return (ch >= '0' && ch <= '9') || ch == '-' || ch == '+' ||
-           ch == '.' || ch == 'e' || ch == 'E';
-}
-
-bool StartsWithLiteral(const wxString& text, std::size_t pos,
-                       const wxString& literal) {
-    if (pos + literal.length() > text.length()) return false;
-    return text.Mid(pos, literal.length()) == literal;
-}
-
-void ApplyRange(wxTextCtrl* ctrl, long start, long end, const wxColour& color) {
-    if (!ctrl || end <= start) return;
-    wxTextAttr attr;
-    attr.SetTextColour(color);
-    ctrl->SetStyle(start, end, attr);
-}
+wxFont ResolveJsonFont(UIManager*) { return CodeFont(); }
 
 } // namespace
 
@@ -137,10 +106,10 @@ void JsonViewer::CreateNativeCtrls() {
 
     const long baseStyle = wxBORDER_NONE | wxTE_MULTILINE | wxTE_READONLY |
                            wxTE_RICH2 | wxTE_PROCESS_TAB | wxVSCROLL;
-    wrappedCtrl_ = new wxTextCtrl(manager_, wxID_ANY, wxString{},
+    wrappedCtrl_ = new TextEditor(manager_, wxID_ANY, wxString{},
                                   rect_.GetTopLeft(), rect_.GetSize(),
                                   baseStyle);
-    nowrapCtrl_ = new wxTextCtrl(manager_, wxID_ANY, wxString{},
+    nowrapCtrl_ = new TextEditor(manager_, wxID_ANY, wxString{},
                                  rect_.GetTopLeft(), rect_.GetSize(),
                                  baseStyle | wxTE_DONTWRAP | wxHSCROLL);
     SyncStyle();
@@ -148,7 +117,7 @@ void JsonViewer::CreateNativeCtrls() {
 }
 
 void JsonViewer::SyncStyle() {
-    for (wxTextCtrl* ctrl : {wrappedCtrl_, nowrapCtrl_}) {
+    for (TextEditor* ctrl : {wrappedCtrl_, nowrapCtrl_}) {
         if (!ctrl) continue;
         ctrl->SetFont(ResolveJsonFont(manager_));
         ctrl->SetOwnForegroundColour(ResolveJsonTextColor(manager_, textColor_));
@@ -168,16 +137,16 @@ void JsonViewer::SetRect(const wxRect& rc) {
     const wxRect inner(rc.x + inset, rc.y + inset,
                        std::max(0, rc.width - inset * 2),
                        std::max(0, rc.height - inset * 2));
-    for (wxTextCtrl* ctrl : {wrappedCtrl_, nowrapCtrl_}) {
+    for (TextEditor* ctrl : {wrappedCtrl_, nowrapCtrl_}) {
         if (!ctrl) continue;
-        ctrl->SetPosition(inner.GetTopLeft());
-        ctrl->SetSize(inner.GetSize());
+        if (ctrl->GetRect() != inner) ctrl->SetSize(inner);
         ctrl->Show(IsNativeWindowVisible() &&
                    ((ctrl == wrappedCtrl_) == wrapLines_));
     }
 }
 
 void JsonViewer::SetVisible(bool v) {
+    if (IsVisible() == v) return;
     Control::SetVisible(v);
     SyncStyle();
 }
@@ -216,7 +185,7 @@ std::string JsonViewer::GetDisplayedText() const {
     return displayedText_;
 }
 
-wxTextCtrl* JsonViewer::ActiveTextCtrl() const {
+TextEditor* JsonViewer::ActiveTextCtrl() const {
     return wrapLines_ ? wrappedCtrl_ : nowrapCtrl_;
 }
 
@@ -252,7 +221,7 @@ void JsonViewer::RefreshText() {
 }
 
 void JsonViewer::RenderActiveText() {
-    wxTextCtrl* ctrl = ActiveTextCtrl();
+    TextEditor* ctrl = ActiveTextCtrl();
     if (!ctrl) return;
     bool& rendered = ActiveRenderedFlag();
     if (rendered) return;
@@ -260,7 +229,7 @@ void JsonViewer::RenderActiveText() {
     rendered = true;
 }
 
-void JsonViewer::SetTextCtrlValue(wxTextCtrl* ctrl, const wxString& text) {
+void JsonViewer::SetTextCtrlValue(TextEditor* ctrl, const wxString& text) {
     if (!ctrl) return;
     ctrl->Freeze();
     ctrl->SetEditable(true);
@@ -272,85 +241,8 @@ void JsonViewer::SetTextCtrlValue(wxTextCtrl* ctrl, const wxString& text) {
     ctrl->Thaw();
 }
 
-void JsonViewer::ApplyJsonHighlight(wxTextCtrl* ctrl, const wxString& text) {
-    if (!ctrl) return;
-
-    const long length = static_cast<long>(text.length());
-    if (length <= 0) return;
-    if (text.length() > kMaxHighlightedChars) {
-        return;
-    }
-
-    wxTextAttr base;
-    base.SetTextColour(ResolveJsonTextColor(manager_, textColor_));
-    if (bkColor_.IsOk()) base.SetBackgroundColour(bkColor_);
-    ctrl->SetStyle(0, length, base);
-
-    const wxColour keyColor(0x9C, 0xDC, 0xFE);
-    const wxColour stringColor(0xCE, 0x91, 0x78);
-    const wxColour numberColor(0xB5, 0xCE, 0xA8);
-    const wxColour literalColor(0x56, 0x9C, 0xD6);
-
-    std::size_t i = 0;
-    while (i < text.length()) {
-        const wxChar ch = text[i];
-        if (ch == '"') {
-            const std::size_t start = i;
-            ++i;
-            bool escaped = false;
-            while (i < text.length()) {
-                const wxChar current = text[i++];
-                if (escaped) {
-                    escaped = false;
-                    continue;
-                }
-                if (current == '\\') {
-                    escaped = true;
-                    continue;
-                }
-                if (current == '"') break;
-            }
-            const std::size_t end = i;
-            std::size_t lookahead = end;
-            while (lookahead < text.length() && IsJsonWhitespace(text[lookahead])) {
-                ++lookahead;
-            }
-            const bool isKey = lookahead < text.length() && text[lookahead] == ':';
-            ApplyRange(ctrl, static_cast<long>(start), static_cast<long>(end),
-                       isKey ? keyColor : stringColor);
-            continue;
-        }
-
-        if (IsNumberStart(ch)) {
-            const std::size_t start = i;
-            ++i;
-            while (i < text.length() && IsNumberChar(text[i])) ++i;
-            ApplyRange(ctrl, static_cast<long>(start), static_cast<long>(i),
-                       numberColor);
-            continue;
-        }
-
-        if (StartsWithLiteral(text, i, "true")) {
-            ApplyRange(ctrl, static_cast<long>(i), static_cast<long>(i + 4),
-                       literalColor);
-            i += 4;
-            continue;
-        }
-        if (StartsWithLiteral(text, i, "false")) {
-            ApplyRange(ctrl, static_cast<long>(i), static_cast<long>(i + 5),
-                       literalColor);
-            i += 5;
-            continue;
-        }
-        if (StartsWithLiteral(text, i, "null")) {
-            ApplyRange(ctrl, static_cast<long>(i), static_cast<long>(i + 4),
-                       literalColor);
-            i += 4;
-            continue;
-        }
-
-        ++i;
-    }
+void JsonViewer::ApplyJsonHighlight(TextEditor* ctrl, const wxString&) {
+    if (ctrl) ctrl->SetJsonHighlight(true);
 }
 
 void JsonViewer::DoPaint(wxDC& dc, const wxRect& clipRect) {

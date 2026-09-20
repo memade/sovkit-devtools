@@ -13,6 +13,7 @@ public:
     std::string GetTag() const override { return "TreeNode"; }
 
     void OnButtonUp(const wxPoint& pt) override;
+    bool OnKeyDown(int keyCode) override;
 
     // ── Tree structure ────────────────────────────────────────────────
     void SetLevel(int lvl)    { level_ = lvl; }
@@ -62,6 +63,7 @@ private:
 // ── TreeView ──────────────────────────────────────────────────────────────
 class TreeView : public List {
 public:
+    bool OnKeyDown(int keyCode) override;
     void DoLayout(const wxRect& rc) override;
     void DoPaint(wxDC& dc, const wxRect& clipRect) override;
     void SetAttribute(const std::string& key, const std::string& val) override;

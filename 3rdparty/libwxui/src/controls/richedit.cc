@@ -1,4 +1,6 @@
 #include <libwxui.hpp>
+#include <libwxui/text_editor.hpp>
+#include <libwxui/appearance.hpp>
 
 #include <algorithm>
 #include <wx/log.h>
@@ -14,15 +16,7 @@ wxColour ResolveRichTextColor(UIManager* manager, const wxColour& requested) {
     return *wxBLACK;
 }
 
-void DisableTextCtrlSmartSubstitutions(wxTextCtrl* textCtrl) {
-#if defined(__WXOSX__)
-    if (textCtrl) textCtrl->OSXDisableAllSmartSubstitutions();
-#else
-    (void)textCtrl;
-#endif
-}
-
-void BindTextCtrlEditShortcuts(wxTextCtrl* textCtrl) {
+void BindTextCtrlEditShortcuts(TextEditor* textCtrl) {
     if (!textCtrl) return;
 
     textCtrl->Bind(wxEVT_KEY_DOWN, [textCtrl](wxKeyEvent& event) {
@@ -60,6 +54,7 @@ RichEdit::~RichEdit() {
 }
 
 void RichEdit::SetAttribute(const std::string& key, const std::string& val) {
+    if (key == "monospace") { monospace_ = ParseBOOL(val); SyncStyle(); return; }
     if (key == "bordervisible"||key=="borderVisible") { borderVisible_=ParseBOOL(val); return; }
     if (key == "autovscroll"  ||key=="autoVScroll")   { autoVScroll_  =ParseBOOL(val); return; }
     if (key == "autohscroll"  ||key=="autoHScroll")   { autoHScroll_  =ParseBOOL(val); return; }
@@ -94,28 +89,16 @@ void RichEdit::CreateNativeCtrl() {
     if (multiLine_) {
         style |= wxTE_MULTILINE;
         style |= autoVScroll_ ? wxVSCROLL : wxTE_NO_VSCROLL;
-        if (autoHScroll_) style |= wxHSCROLL;
+        if (autoHScroll_) style |= wxHSCROLL | wxTE_DONTWRAP;
     }
     if (password_)   style |= wxTE_PASSWORD;
     if (readOnly_)   style |= wxTE_READONLY;
     if (rich_)       style |= wxTE_RICH2;
-    // autoVScroll_ is automatic when wxTE_MULTILINE is set
 
-    textCtrl_ = new wxTextCtrl(manager_, wxID_ANY,
+    textCtrl_ = new TextEditor(manager_, wxID_ANY,
                                Utf8ToWxString(text_), rect_.GetTopLeft(),
                                rect_.GetSize(), style);
-    DisableTextCtrlSmartSubstitutions(textCtrl_);
     BindTextCtrlEditShortcuts(textCtrl_);
-    textCtrl_->Bind(wxEVT_SCROLLWIN_THUMBTRACK,
-                    [this](wxScrollWinEvent& event) {
-                        event.Skip();
-                        if (textCtrl_) textCtrl_->Update();
-                    });
-    textCtrl_->Bind(wxEVT_SCROLLWIN_THUMBRELEASE,
-                    [this](wxScrollWinEvent& event) {
-                        event.Skip();
-                        if (textCtrl_) textCtrl_->Update();
-                    });
     textCtrl_->Bind(wxEVT_TEXT, [this](wxCommandEvent& event) {
         event.Skip();
         if (textCtrl_) {
@@ -129,7 +112,11 @@ void RichEdit::CreateNativeCtrl() {
 
 void RichEdit::SyncStyle() {
     if (!textCtrl_) return;
-    if (manager_) textCtrl_->SetFont(manager_->GetUIFont());
+    if (manager_) {
+        auto font = manager_->GetUIFont();
+        if (monospace_) font = CodeFont();
+        textCtrl_->SetFont(font);
+    }
     if (bkColor_.IsOk() && bkColor_.Alpha() != 0) {
         textCtrl_->SetOwnBackgroundColour(bkColor_);
     }
@@ -157,9 +144,10 @@ void RichEdit::SetRect(const wxRect& rc) {
         const int topInset = inset + std::max(0, textPadding_.y);
         const int rightInset = inset + std::max(0, textPadding_.width);
         const int bottomInset = inset + std::max(0, textPadding_.height);
-        textCtrl_->SetPosition(wxPoint(rc.x + leftInset, rc.y + topInset));
-        textCtrl_->SetSize(wxSize(std::max(0, rc.width - leftInset - rightInset),
-                                  std::max(0, rc.height - topInset - bottomInset)));
+        const wxRect nativeRect(rc.x + leftInset, rc.y + topInset,
+                                std::max(0, rc.width - leftInset - rightInset),
+                                std::max(0, rc.height - topInset - bottomInset));
+        if (textCtrl_->GetRect() != nativeRect) textCtrl_->SetSize(nativeRect);
         textCtrl_->Show(IsNativeWindowVisible());
     }
 }
@@ -228,6 +216,12 @@ void RichEdit::Clear() {
         if (wasReadOnly) textCtrl_->SetEditable(false);
     }
     text_.clear();
+}
+
+void RichEdit::AppendBounded(std::string_view text, std::size_t maxCharacters) {
+    auto value = Utf8ToUtf32(GetValueUtf8() + std::string(text));
+    if (value.size() > maxCharacters) value.erase(0, value.size() - maxCharacters);
+    SetValueUtf8(Utf32ToUtf8(value));
 }
 
 void RichEdit::SetReadOnly(bool r) {
