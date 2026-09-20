@@ -85,6 +85,8 @@ cmake --preset windows-release
 cmake --build --preset windows-release
 ```
 
+Direct CMake configuration also defaults to `.sdk/windows-x64-current` on Windows when no SDK is selected. The selected SDK path is retained in the build cache; use `-DSOVKIT_SDK_ROOT=C:/other/sdk` to switch packages. If the environment variable or cache points to this checkout itself, CMake resolves its `.sdk/windows-x64-current` package and corrects the cache. Other explicitly selected invalid paths still fail.
+
 Build individual targets with `cmake --build --preset windows-debug --target sovkit-devtools` or `--target sovkit-console`. Both configurations share the `out/` solution; executables go to `out/Debug/` or `out/Release/`. GUI builds copy the selected SDK DLL and matching PDB when present. Selecting Release does not rebuild or switch the SDK; provide the intended SDK package. Stop the application before replacing its SDK.
 
 The existing `windows-x64-debug` / `windows-x64-release` Ninja presets still use `scripts/build.py` from an x64 developer shell. Use CMake directly or Visual Studio for the new `windows-debug` / `windows-release` presets, not `build.py`.

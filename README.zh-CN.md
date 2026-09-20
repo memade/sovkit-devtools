@@ -60,7 +60,9 @@ Windows 的 Visual Studio 解决方案构建见下节。Linux：使用 `linux-x6
 
 未设置环境变量时，双击脚本会尝试 `%USERPROFILE%/vcpkg` 和仓库下 `.sdk/windows-x64-current`。它只生成并打开解决方案，不删除已有构建。若需手动打开，直接双击 `out/sovkit-devtools.slnx`。
 
-也可在仓库根目录使用普通 **CMD**，按 OrbitBridge 的预设命令构建（将示例路径换成实际路径）：
+直接运行 CMake 时也会自动使用仓库下 `.sdk/windows-x64-current`（未指定 SDK 时）。SDK 路径会保存在构建缓存中，后续配置无需重复设置；更换 SDK 可传入 `-DSOVKIT_SDK_ROOT=C:/other/sdk`。若环境变量或缓存误指向本仓库根目录，会自动定位到其中的 `.sdk/windows-x64-current` 包并修正缓存。其他显式指定的无效路径仍会报错。
+
+也可在仓库根目录使用普通 **CMD**，按 OrbitBridge 的预设命令构建（将示例路径换成实际路径；使用上述本地 SDK 时可省略 `set SOVKIT_SDK_ROOT`）：
 
 ```bat
 set "VCPKG_ROOT=C:\path\to\vcpkg"
