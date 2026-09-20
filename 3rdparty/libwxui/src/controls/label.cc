@@ -737,6 +737,7 @@ Edit::~Edit() {
 }
 
 void Edit::SetAttribute(const std::string& key, const std::string& val) {
+    if (key == "hint") { SetHint(val); return; }
     if (key == "readonly"  || key == "readOnly") { readOnly_ = ParseBOOL(val); if (textCtrl_) textCtrl_->SetEditable(!readOnly_); return; }
     if (key == "password")                       { password_ = ParseBOOL(val);    return; }
     if (key == "multiline")                      { multiline_= ParseBOOL(val);    return; }
@@ -835,9 +836,12 @@ void Edit::SetRect(const wxRect& rc) {
             ++topOffset;
         }
 #endif
-        textCtrl_->SetMargins(leftPadding, 0);
-        textCtrl_->SetPosition(wxPoint(contentX, contentY + topOffset));
-        textCtrl_->SetSize(wxSize(contentWidth, nativeHeight));
+        if (nativeMargins_ != wxPoint(leftPadding, 0)) {
+            textCtrl_->SetMargins(leftPadding, 0);
+            nativeMargins_ = wxPoint(leftPadding, 0);
+        }
+        const wxRect nativeRect(contentX, contentY + topOffset, contentWidth, nativeHeight);
+        if (textCtrl_->GetRect() != nativeRect) textCtrl_->SetSize(nativeRect);
         textCtrl_->Show(IsNativeWindowVisible());
     }
 }
@@ -875,6 +879,7 @@ void Edit::SetEnabled(bool e) {
 
 void Edit::SyncNativeCtrl() {
     if (!textCtrl_) return;
+    textCtrl_->SetHint(Utf8ToWxString(hint_));
     if (manager_) textCtrl_->SetFont(manager_->GetUIFont());
     // Keep the native control enabled even for logical-disabled edits.
     // wxTextCtrl lets the OS repaint real disabled fields with system colours
@@ -904,6 +909,11 @@ void Edit::SyncNativeCtrl() {
 void Edit::SetReadOnly(bool r) {
     readOnly_ = r;
     SyncNativeCtrl();
+}
+
+void Edit::SetHint(std::string_view hint) {
+    hint_ = hint;
+    if (textCtrl_) textCtrl_->SetHint(Utf8ToWxString(hint_));
 }
 
 void Edit::SetPassword(bool p) {

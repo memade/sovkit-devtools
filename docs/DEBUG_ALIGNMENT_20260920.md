@@ -41,6 +41,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .build/rebuild-current.ps1
 
 ## libwxui 评估
 
+以下表格保留早期评估。后续已按新要求完成完整 XML 界面迁移，并将窗口、文件/目录选择和消息对话框封装到 libwxui，业务层不再直接调用 wxWidgets。当前约定及测试见 [LIBWXUI.md](LIBWXUI.md)；表中“下一步”和保留业务层原生调用的建议已被替代。
+
 你的判断成立。此前业务界面只有顶部banner使用UIManager，其余布局/控件几乎全部直接写wxWidgets；不是因为libwxui缺少对应能力。
 
 | 界面 | 已有libwxui能力 | 处理建议 |

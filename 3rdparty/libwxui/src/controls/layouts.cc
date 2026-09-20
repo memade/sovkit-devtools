@@ -1,6 +1,7 @@
 /// libwxui — layout containers implementation
 
 #include <libwxui.hpp>
+#include <libwxui/appearance.hpp>
 
 #include <algorithm>
 #include <cstdlib>
@@ -30,11 +31,6 @@ void SetResizeCursor(UIManager* manager, wxStockCursor cursor) {
 void ResetCursor(UIManager* manager) {
     if (!manager) return;
     manager->SetCursor(wxCursor(wxCURSOR_ARROW));
-}
-
-wxColour SplitterColor(bool active) {
-    return active ? wxColour(0x46, 0x36, 0x89)
-                  : wxColour(0x30, 0x30, 0x30);
 }
 
 int MaxVerticalTargetSize(const VerticalLayout* layout, const Control* target) {
@@ -131,10 +127,8 @@ void VerticalLayout::DoPaint(wxDC& dc, const wxRect& clipRect) {
     const wxRect splitter = SplitterRect();
     if (splitter.IsEmpty() || !clipRect.Intersects(splitter)) return;
 
-    const wxColour color = SplitterColor(resizing_);
-    dc.SetPen(wxPen(color));
-    dc.SetBrush(wxBrush(color));
-    dc.DrawRectangle(splitter);
+    PaintDivider(dc, splitter, false, resizing_,
+        manager_ && manager_->GetRoot() ? manager_->GetRoot()->GetBkColor() : bkColor_);
 }
 
 void VerticalLayout::DoLayout(const wxRect& rc) {
@@ -186,6 +180,7 @@ void VerticalLayout::OnButtonDown(const wxPoint& pt) {
     resizeStartY_ = pt.y;
     resizeStartHeight_ = target->GetRect().GetHeight();
     SetResizeCursor(manager_, wxCURSOR_SIZENS);
+    if (manager_) manager_->RefreshRect(SplitterRect(), false);
 }
 
 void VerticalLayout::OnMouseMove(const wxPoint& pt) {
@@ -199,13 +194,14 @@ void VerticalLayout::OnMouseMove(const wxPoint& pt) {
         const int targetMax = resizeTarget_->GetMaxSize().y;
         if (targetMax > 0) maximum = std::min(maximum, targetMax);
 
-        resizeTarget_->SetFixedHeight(
-            ClampResizeSize(requested, minimum, maximum));
+        const int height = ClampResizeSize(requested, minimum, maximum);
+        if (resizeTarget_->GetFixedSize().y == height) return;
+        resizeTarget_->SetFixedHeight(height);
         SetResizeCursor(manager_, wxCURSOR_SIZENS);
-        if (manager_) {
-            manager_->RequestLayout();
-            manager_->Refresh();
-        }
+        // Only this container's children change. Relaying out the root also
+        // touched every unrelated native editor on each mouse movement.
+        SetRect(rect_);
+        Invalidate();
         return;
     }
 
@@ -226,10 +222,7 @@ void VerticalLayout::OnButtonUp(const wxPoint&) {
     resizing_ = false;
     resizeTarget_ = nullptr;
     ResetCursor(manager_);
-    if (manager_) {
-        manager_->RequestLayout();
-        manager_->Refresh();
-    }
+    if (manager_) manager_->RefreshRect(SplitterRect(), false);
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -274,10 +267,8 @@ void HorizontalLayout::DoPaint(wxDC& dc, const wxRect& clipRect) {
     const wxRect splitter = SplitterRect();
     if (splitter.IsEmpty() || !clipRect.Intersects(splitter)) return;
 
-    const wxColour color = SplitterColor(resizing_);
-    dc.SetPen(wxPen(color));
-    dc.SetBrush(wxBrush(color));
-    dc.DrawRectangle(splitter);
+    PaintDivider(dc, splitter, true, resizing_,
+        manager_ && manager_->GetRoot() ? manager_->GetRoot()->GetBkColor() : bkColor_);
 }
 
 void HorizontalLayout::DoLayout(const wxRect& rc) {
@@ -328,6 +319,7 @@ void HorizontalLayout::OnButtonDown(const wxPoint& pt) {
     resizeStartX_ = pt.x;
     resizeStartWidth_ = target->GetRect().GetWidth();
     SetResizeCursor(manager_, wxCURSOR_SIZEWE);
+    if (manager_) manager_->RefreshRect(SplitterRect(), false);
 }
 
 void HorizontalLayout::OnMouseMove(const wxPoint& pt) {
@@ -341,13 +333,12 @@ void HorizontalLayout::OnMouseMove(const wxPoint& pt) {
         const int targetMax = resizeTarget_->GetMaxSize().x;
         if (targetMax > 0) maximum = std::min(maximum, targetMax);
 
-        resizeTarget_->SetFixedWidth(
-            ClampResizeSize(requested, minimum, maximum));
+        const int width = ClampResizeSize(requested, minimum, maximum);
+        if (resizeTarget_->GetFixedSize().x == width) return;
+        resizeTarget_->SetFixedWidth(width);
         SetResizeCursor(manager_, wxCURSOR_SIZEWE);
-        if (manager_) {
-            manager_->RequestLayout();
-            manager_->Refresh();
-        }
+        SetRect(rect_);
+        Invalidate();
         return;
     }
 
@@ -368,10 +359,7 @@ void HorizontalLayout::OnButtonUp(const wxPoint&) {
     resizing_ = false;
     resizeTarget_ = nullptr;
     ResetCursor(manager_);
-    if (manager_) {
-        manager_->RequestLayout();
-        manager_->Refresh();
-    }
+    if (manager_) manager_->RefreshRect(SplitterRect(), false);
 }
 
 // ════════════════════════════════════════════════════════════════════════

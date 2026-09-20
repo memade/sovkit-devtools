@@ -1,4 +1,5 @@
 #include <libwxui.hpp>
+#include <libwxui/appearance.hpp>
 
 #include <wx/log.h>
 #include <algorithm>
@@ -57,26 +58,26 @@ wxRect ScrollBar::GetTrackRect() const {
     wxRect track = rect_;
     if (hor_) {
         if (showButton1_) track.x      += btnSize_;
-        if (showButton2_) track.width  -= btnSize_ * (showButton1_ ? 2 : 1);
+        track.width = std::max(0, track.width - btnSize_ * (int(showButton1_) + int(showButton2_)));
     } else {
         if (showButton1_) track.y      += btnSize_;
-        if (showButton2_) track.height -= btnSize_ * (showButton1_ ? 2 : 1);
+        track.height = std::max(0, track.height - btnSize_ * (int(showButton1_) + int(showButton2_)));
     }
     return track;
 }
 
 wxRect ScrollBar::GetThumbRect() const {
-    if (range_ <= 0) return wxRect{};
+    if (range_ <= pageSize_) return wxRect{};
     wxRect track = GetTrackRect();
     if (hor_) {
         const int trackW = track.GetWidth();
-        const int thumbW = std::max(20, trackW * pageSize_ / std::max(range_, pageSize_));
+        const int thumbW = std::clamp(trackW * pageSize_ / range_, std::min(20, trackW), trackW);
         const int maxOff = trackW - thumbW;
         const int off    = (maxOff > 0) ? (value_ * maxOff / (range_ - pageSize_)) : 0;
         return wxRect(track.x + off, track.y, thumbW, track.GetHeight());
     } else {
         const int trackH = track.GetHeight();
-        const int thumbH = std::max(20, trackH * pageSize_ / std::max(range_, pageSize_));
+        const int thumbH = std::clamp(trackH * pageSize_ / range_, std::min(20, trackH), trackH);
         const int maxOff = trackH - thumbH;
         const int off    = (maxOff > 0) ? (value_ * maxOff / (range_ - pageSize_)) : 0;
         return wxRect(track.x, track.y + off, track.GetWidth(), thumbH);
@@ -116,6 +117,10 @@ static void DrawStateImage(wxDC& dc, const wxRect& r,
 }
 
 void ScrollBar::DoPaint(wxDC& dc, const wxRect& /*clipRect*/) {
+    auto thumb = GetThumbRect();
+    if (hor_) thumb.Deflate(0, 3); else thumb.Deflate(3, 0);
+    PaintScrollChrome(dc, rect_, thumb, draggingThumb_ || thumbHot_,
+        manager_ && manager_->GetRoot() ? manager_->GetRoot()->GetBkColor() : bkColor_);
     // Background
     DrawStateImage(dc, rect_, bkImages_, 0, manager_);
 

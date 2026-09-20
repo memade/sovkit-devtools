@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Window bkcolor="#FFF0F4F8" defaultfontcolor="#FF172B3A">
+  <VerticalLayout childpadding="6">
+    <HorizontalLayout height="72" inset="20,10,20,10" childpadding="20" bkcolor="#FF122437">
+      <VerticalLayout>
+        <Label text="SOVKIT / DEVTOOLS" textcolor="#FFF0F5FA" height="28"/>
+        <Label text="检查能力 → 启动独立身份 → 发现与配对 → 收发验证 → 导出诊断" textcolor="#FFAFC6D9" height="22"/>
+      </VerticalLayout>
+      <Label text="0.1.0 · PUBLIC SDK ONLY" textcolor="#FF7FE0C2" width="220"/>
+    </HorizontalLayout>
+    <HorizontalLayout height="36" inset="10,0,10,0" childpadding="6">
+      <Label text="动态库" width="60"/>
+      <Edit name="library" readonly="true" maxchar="0" bkcolor="#FFFFFFFF"/>
+      <Button name="browseSdk" text="选择 SDK…" width="104" bkcolor="#FFDCE7F0" align="center"/>
+      <Button name="load" text="加载并检查" width="110" bkcolor="#FFDCE7F0" align="center"/>
+      <Button name="docs" text="接入文档" width="96" bkcolor="#FFDCE7F0" align="center"/>
+    </HorizontalLayout>
+    <HorizontalLayout height="36" inset="10,0,10,0" childpadding="6">
+      <Edit name="device" hint="测试设备名" bkcolor="#FFFFFFFF"/>
+      <Edit name="profile" hint="留空：临时内存身份" maxchar="0" bkcolor="#FFFFFFFF"/>
+      <Button name="browseProfile" text="测试目录…" width="104" bkcolor="#FFDCE7F0" align="center"/>
+      <Edit name="password" password="true" hint="测试目录密码" maxchar="0" bkcolor="#FFFFFFFF"/>
+      <Button name="start" text="启动身份" width="96" bkcolor="#FFDCE7F0" align="center"/>
+      <Button name="stop" text="停止并保存" width="110" bkcolor="#FFDCE7F0" align="center"/>
+    </HorizontalLayout>
+    <HorizontalLayout name="workspace" sepwidth="6" sepimm="true" childpadding="6" inset="10,0,10,0">
+      <VerticalLayout name="navigation" width="250" minwidth="180" childpadding="6">
+        <Edit name="search" height="32" hint="搜索 API / 中文功能" bkcolor="#FFFFFFFF"/>
+        <TreeView name="apiTree" vscrollbar="true" itemheight="28" bkcolor="#FFFFFFFF"/>
+      </VerticalLayout>
+      <VerticalLayout minwidth="600" childpadding="6">
+        <Label name="title" text="选择一个 API" height="28"/>
+        <RichEdit name="help" height="65" readonly="true" wanttab="false" bkcolor="#FFF0F4F8"/>
+        <HorizontalLayout height="34" childpadding="6">
+          <Button name="execute" text="执行请求" width="96" bkcolor="#FFC6E8DC" align="center"/>
+          <Button name="reset" text="恢复模板" width="96" bkcolor="#FFDCE7F0" align="center"/>
+          <Button name="sendFile" text="选择发送文件…" width="140" bkcolor="#FFDCE7F0" align="center"/>
+          <Button name="receiveDirectory" text="选择接收目录…" width="140" bkcolor="#FFDCE7F0" align="center"/>
+        </HorizontalLayout>
+        <HorizontalLayout name="editors" sepwidth="6" sepimm="true" childpadding="6">
+          <RichEdit name="request" text="{}" minwidth="200" autohscroll="true" monospace="true" bkcolor="#FFFFFFFF"/>
+          <JsonViewer name="response" minwidth="200" mode="pretty" wraplines="false" textcolor="#FF172B3A" bkcolor="#FFF8FAFC"/>
+        </HorizontalLayout>
+      </VerticalLayout>
+    </HorizontalLayout>
+    <HorizontalLayout height="34" inset="10,0,10,0" childpadding="6">
+      <Label text="事件自动轮询 · 只在内存保留最近记录"/>
+      <Button name="clear" text="清空显示" width="96" bkcolor="#FFDCE7F0" align="center"/>
+      <Button name="export" text="导出诊断元数据…" width="168" bkcolor="#FFDCE7F0" align="center"/>
+    </HorizontalLayout>
+    <VerticalLayout height="174" inset="10,0,10,6" childpadding="4">
+      <HorizontalLayout height="30" childpadding="4">
+        <Option name="eventsTab" text="SDK 事件" group="records" optionstyle="button" selected="true" selectedbkcolor="#FFC6E8DC" bkcolor="#FFDCE7F0" align="center" width="120"/>
+        <Option name="historyTab" text="请求记录 / 耗时" group="records" optionstyle="button" selectedbkcolor="#FFC6E8DC" bkcolor="#FFDCE7F0" align="center" width="180"/>
+        <Option name="logsTab" text="SDK 本机日志" group="records" optionstyle="button" selectedbkcolor="#FFC6E8DC" bkcolor="#FFDCE7F0" align="center" width="150"/>
+      </HorizontalLayout>
+      <TabLayout name="records" selectedid="events">
+        <RichEdit name="events" readonly="true" autohscroll="true" monospace="true" wanttab="false" bkcolor="#FFFFFFFF"/>
+        <RichEdit name="history" readonly="true" autohscroll="true" monospace="true" wanttab="false" bkcolor="#FFFFFFFF"/>
+        <RichEdit name="logs" readonly="true" autohscroll="true" monospace="true" wanttab="false" bkcolor="#FFFFFFFF"/>
+      </TabLayout>
+    </VerticalLayout>
+  </VerticalLayout>
+</Window>

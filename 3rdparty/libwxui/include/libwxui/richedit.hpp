@@ -1,11 +1,12 @@
 #pragma once
-/// libwxui — RichEdit control (wraps wxTextCtrl in rich/multi-line mode).
+/// libwxui — RichEdit control with a shared styled editor and drawn scrollbars.
 
 #include "container.hpp"
 #include <wx/colour.h>
 #include <wx/textctrl.h>
 
 namespace wxui {
+class TextEditor;
 
 class RichEdit : public Container {
 public:
@@ -22,6 +23,9 @@ public:
     [[nodiscard]] std::string GetValueUtf8() const { return WxStringToUtf8(GetValue()); }
     void SetValue(const wxString& v);
     void SetValue(std::string_view v) { SetValue(Utf8ToWxString(v)); }
+    void SetValueUtf8(std::string_view v) { SetValue(Utf8ToWxString(v)); }
+    // Retain at most maxCharacters Unicode characters, including new text.
+    void AppendBounded(std::string_view text, std::size_t maxCharacters);
     void AppendText(const wxString& t);
     void AppendText(std::string_view t) { AppendText(Utf8ToWxString(t)); }
     void AppendText(const wxString& t, const wxColour& color);
@@ -37,7 +41,7 @@ private:
     void CreateNativeCtrl();
     void SyncStyle();
 
-    wxTextCtrl* textCtrl_       = nullptr;
+    TextEditor* textCtrl_       = nullptr;
 
     bool borderVisible_  = false;
     bool autoVScroll_    = true;
@@ -53,6 +57,7 @@ private:
     wxColour textColor_;
     wxRect textPadding_  {6, 0, 6, 0};
     int fontId_          = -1;
+    bool monospace_      = false;
 };
 
 } // namespace wxui

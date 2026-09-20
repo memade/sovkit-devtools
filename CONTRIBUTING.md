@@ -20,6 +20,7 @@ Use the GUI metadata export when helpful. Review anything else before attaching 
 
 - Keep a PR focused and explain the observable problem and resulting behavior.
 - Keep SDK allocations paired with SDK frees and keep callbacks alive until the SDK has safely stopped and detached them.
+- Use libwxui controls and services for application UI; keep native wxWidgets calls inside the library. See [the UI boundary](docs/LIBWXUI.md).
 - Add or adjust tests when fixing behavior that could regress. Run relevant existing tests; describe any platform checks you could not run.
 - Update user-facing documentation when capabilities, limitations, or setup change.
 - Keep binaries, build caches, local SDK packages, and test profiles out of Git.

@@ -24,8 +24,8 @@ protected:
     wxColour disabledTextColor_;
     wxRect   textPadding_   {0, 0, 0, 0};
     int      fontId_        = -1;
-    int      hAlign_        = 0;  ///< 0=left 1=center 2=right
-    int      vAlign_        = 1;  ///< 0=top 1=center 2=bottom
+    int      hAlign_        = wxALIGN_LEFT;
+    int      vAlign_        = wxALIGN_CENTER_VERTICAL;
     bool     endEllipsis_   = false;
     bool     showHtml_      = false;
 
@@ -187,6 +187,9 @@ public:
     [[nodiscard]] std::string GetValueUtf8() const { return WxStringToUtf8(GetValue()); }
     void SetValue(const wxString& v);
     void SetValue(std::string_view v) { SetValue(Utf8ToWxString(v)); }
+    void SetValueUtf8(std::string_view v) { SetValue(Utf8ToWxString(v)); }
+    void Clear() { SetValueUtf8({}); }
+    void SetHint(std::string_view hint);
     void SetEnabled(bool e) override;
     void SetReadOnly(bool r);
     void SetPassword(bool p);
@@ -197,11 +200,13 @@ private:
     void SyncNativeCtrl();
 
     wxTextCtrl* textCtrl_   = nullptr;
+    wxPoint nativeMargins_{-1, -1};
 
     bool      readOnly_     = false;
     bool      password_     = false;
     bool      multiline_    = false;
     int       maxChar_      = 255;
+    std::string hint_;
     ImageSpec normalImage_;
     ImageSpec hotImage_;
     ImageSpec focusedImage_;

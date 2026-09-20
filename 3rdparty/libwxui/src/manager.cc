@@ -246,7 +246,7 @@ void UIManager::OnMouseMove(wxMouseEvent& evt) {
         if (hovered_) hovered_->OnMouseLeave();
         hovered_ = hit;
         if (hovered_) hovered_->OnMouseEnter(pt);
-    } else if (hovered_) {
+    } else if (hovered_ && hovered_ != pressed_) {
         hovered_->OnMouseMove(pt);
     }
 
@@ -263,6 +263,8 @@ void UIManager::OnLButtonDown(wxMouseEvent& evt) {
     const wxPoint pt = evt.GetPosition();
     Control* hit = HitTest(pt);
     pressed_ = hit;
+    // Owner-drawn controls need keyboard focus after a native editor was used.
+    SetFocus();
 
     List* oldList = OwningList(focused_);
     List* newList = OwningList(hit);
@@ -365,7 +367,7 @@ void UIManager::ForgetControlTree(Control* ctrl) {
 
 // ── Keyboard ──────────────────────────────────────────────────────────────
 void UIManager::OnKeyDown(wxKeyEvent& evt) {
-    if (focused_) focused_->OnKeyDown(evt.GetKeyCode());
+    if (focused_ && focused_->OnKeyDown(evt.GetKeyCode())) return;
     evt.Skip();
 }
 
@@ -527,7 +529,7 @@ void UIManager::ForceLayout() {
 }
 
 void UIManager::InvalidateControl(Control* ctrl) {
-    if (ctrl) RefreshRect(ctrl->GetRect());
+    if (ctrl) RefreshRect(ctrl->GetRect(), false);
 }
 
 void UIManager::LoadChildLayout(Container* container, const std::string& xmlFile) {

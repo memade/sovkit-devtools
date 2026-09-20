@@ -1,4 +1,5 @@
 #include <libwxui.hpp>
+#include <libwxui/appearance.hpp>
 
 #include <wx/log.h>
 #include <algorithm>
@@ -9,8 +10,8 @@ namespace wxui {
 namespace {
 
 constexpr int kMinHeaderColumnWidth = 48;
-constexpr int kListScrollBarWidth = 14;
-constexpr int kListScrollBarMargin = 2;
+constexpr int kListScrollBarWidth = 12;
+constexpr int kListScrollBarMargin = 3;
 constexpr int kListScrollThumbMinHeight = 22;
 constexpr int kListWheelRows = 3;
 
@@ -786,47 +787,13 @@ void List::SetListHScrollPos(int pos) {
 }
 
 void List::PaintVScrollBar(wxDC& dc) const {
-    if (!vScrollVisible_) return;
-
-    dc.SetPen(*wxTRANSPARENT_PEN);
-    dc.SetBrush(wxBrush(wxColour(0x22, 0x22, 0x22)));
-    dc.DrawRectangle(vScrollRect_);
-
-    dc.SetPen(wxPen(wxColour(0x30, 0x30, 0x30)));
-    dc.DrawLine(vScrollRect_.GetLeft(), vScrollRect_.GetTop(),
-                vScrollRect_.GetLeft(), vScrollRect_.GetBottom());
-
-    const wxRect thumb = GetVScrollThumbRect();
-    if (!thumb.IsEmpty()) {
-        const wxColour thumbColor = (vScrollDragging_ || vScrollThumbHot_)
-                                        ? wxColour(0x84, 0x84, 0x84)
-                                        : wxColour(0x5F, 0x5F, 0x5F);
-        dc.SetPen(*wxTRANSPARENT_PEN);
-        dc.SetBrush(wxBrush(thumbColor));
-        dc.DrawRectangle(thumb);
-    }
+    if (vScrollVisible_) PaintScrollChrome(dc, vScrollRect_, GetVScrollThumbRect(),
+        vScrollDragging_ || vScrollThumbHot_, bkColor_);
 }
 
 void List::PaintHScrollBar(wxDC& dc) const {
-    if (!hScrollVisible_) return;
-
-    dc.SetPen(*wxTRANSPARENT_PEN);
-    dc.SetBrush(wxBrush(wxColour(0x22, 0x22, 0x22)));
-    dc.DrawRectangle(hScrollRect_);
-
-    dc.SetPen(wxPen(wxColour(0x30, 0x30, 0x30)));
-    dc.DrawLine(hScrollRect_.GetLeft(), hScrollRect_.GetTop(),
-                hScrollRect_.GetRight(), hScrollRect_.GetTop());
-
-    const wxRect thumb = GetHScrollThumbRect();
-    if (!thumb.IsEmpty()) {
-        const wxColour thumbColor = (hScrollDragging_ || hScrollThumbHot_)
-                                        ? wxColour(0x84, 0x84, 0x84)
-                                        : wxColour(0x5F, 0x5F, 0x5F);
-        dc.SetPen(*wxTRANSPARENT_PEN);
-        dc.SetBrush(wxBrush(thumbColor));
-        dc.DrawRectangle(thumb);
-    }
+    if (hScrollVisible_) PaintScrollChrome(dc, hScrollRect_, GetHScrollThumbRect(),
+        hScrollDragging_ || hScrollThumbHot_, bkColor_);
 }
 
 void List::OnMouseLeave() {
@@ -1069,7 +1036,7 @@ void List::DoPaint(wxDC& dc, const wxRect& clipRect) {
         wxRect corner(vScrollRect_.x, hScrollRect_.y,
                       vScrollRect_.GetWidth(), hScrollRect_.GetHeight());
         dc.SetPen(*wxTRANSPARENT_PEN);
-        dc.SetBrush(wxBrush(wxColour(0x22, 0x22, 0x22)));
+        dc.SetBrush(wxBrush(ChromeFor(bkColor_).track));
         dc.DrawRectangle(corner);
     }
 }

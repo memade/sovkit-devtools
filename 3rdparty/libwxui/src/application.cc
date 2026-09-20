@@ -493,7 +493,7 @@ std::string ShowPopupMenu(wxWindow* owner,
 
 void SetFrameStatusText(wxFrame* frame, const wxString& text, int field) {
     if (!frame) return;
-    gFrameStatusText[frame] = text;
+    if (field == 0) gFrameStatusText[frame] = text;
     if (auto* statusBar = FrameStatusBar(frame)) {
         ApplyFrameStatusTextColor(frame);
         statusBar->SetStatusText(text, field);
@@ -523,7 +523,8 @@ bool LoadUiContent(UIManager* manager, const std::string& resourceRoot,
 }
 
 bool Application::OnInit() {
-    if (!wxApp::OnInit()) return false;
+    // Applications parse their UTF-8 Arguments() in OnAppInit. The default
+    // wxApp parser rejects application-specific options before that hook runs.
     return OnAppInit();
 }
 
@@ -535,6 +536,14 @@ int Application::OnExit() {
 
 bool Application::OnAppInit() {
     return true;
+}
+
+void Application::SetName(const std::string& name) { SetAppName(Utf8ToWxString(name)); }
+
+std::vector<std::string> Application::Arguments() const {
+    std::vector<std::string> result;
+    for (int i = 0; i < argc; ++i) result.push_back(WxStringToUtf8(wxString(argv[i])));
+    return result;
 }
 
 int Application::OnAppExit() {
@@ -601,6 +610,10 @@ bool SdiFrame::LoadContent(const std::string& resourceRoot,
     auto* mgr = EnsureUiManager();
     mgr->SetResourceRoot(resourceRoot);
     return mgr->LoadFromFile(xmlPath);
+}
+
+bool SdiFrame::LoadContentXml(const std::string& xml) {
+    return EnsureUiManager()->LoadFromString(xml);
 }
 
 MdiFrame::MdiFrame(const FrameSpec& spec, wxWindow* parent, wxWindowID id)

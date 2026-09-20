@@ -6,4 +6,6 @@ SovKit DevTools source follows the root MIT LICENSE.
 
 The tool uses wxWidgets (wxWindows Library Licence), fmt (MIT), RapidJSON (MIT and its bundled notices), utfcpp (Boost Software License), and nlohmann/json (MIT). Their exact source and copyright notices are provided by the pinned vcpkg recipes; vcpkg builds copy installed dependency copyright files into packages.
 
+The UI bundles Noto Sans CJK SC and Noto Sans Mono CJK SC under the SIL Open Font License 1.1. The unmodified fonts, license, upstream paths and checksums are in `res/fonts`. Text editing uses wxWidgets' Scintilla component; its notices are included by the wxWidgets vcpkg recipe.
+
 SovKit is separately licensed. SDK packages must retain their own LICENSE, NOTICE.md, third-party notices and covered source obligations. Supplying a shared library does not change those terms. DevTools does not implement, copy or statically link SDK internals.
