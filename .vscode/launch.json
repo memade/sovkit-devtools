@@ -1,0 +1,16 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "DevTools · macOS Debug",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/.build/local-macos-debug-current/sovkit-devtools.app/Contents/MacOS/sovkit-devtools",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "terminal": "console",
+      "stopOnEntry": false,
+      "preLaunchTask": "DevTools: build macOS Debug"
+    }
+  ]
+}

@@ -80,5 +80,3 @@ CMakeUserPresets.json
 __pycache__/
 *.pyc
 
-# Local editor preferences
-.vscode/

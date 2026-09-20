@@ -1,0 +1,27 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "DevTools: build macOS Debug",
+      "type": "process",
+      "command": "python3",
+      "args": [
+        "${workspaceFolder}/scripts/build.py",
+        "local-macos-debug-current",
+        "--sdk",
+        "${workspaceFolder}/.sdk/macos-arm64-current"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PATH": "/opt/homebrew/bin:/usr/local/bin:${env:PATH}"
+        }
+      },
+      "problemMatcher": ["$gcc"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    }
+  ]
+}
