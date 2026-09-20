@@ -157,7 +157,7 @@ public:
   UIManager *GetUIManager() override {
     return uiManager_;
   }
-  bool LoadContentXml(const std::string& xml);
+  bool LoadContentXml(const std::string& xml, UIManager::ResourceLoader resources = {});
   bool LoadContent(const std::string &resourceRoot,
                    const std::string &xmlPath) override;
 

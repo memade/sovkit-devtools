@@ -38,11 +38,10 @@ window normally after checking the report.
 
 ## Appearance
 
-The desktop host registers the bundled Noto Sans CJK SC UI font and Noto Sans
-Mono CJK SC editor font for the process, both at 11 pt. The same Chinese/Latin
-glyphs ship on all platforms; font rasterization still belongs to the OS.
-Fonts and their OFL license are staged into `fonts/` beside the executable
-(`Contents/Resources/fonts/` for macOS). They are not installed system-wide.
+The desktop host uses Microsoft YaHei on Windows (with the system GUI font
+as fallback if unavailable). macOS and Linux use the native system GUI font
+and system monospace font for code views. CJK fallback and rendering belong to
+the OS. No private font registration, font downloads or font files are needed.
 
 Labels and buttons default to vertical centering. Multiline editors keep text
 aligned to the top for reading and editing. RichEdit and JsonViewer share a
@@ -56,3 +55,18 @@ background erasure. Native editor geometry is applied only when it changes;
 scrollbar updates retain the current viewport instead of resizing it repeatedly.
 The desktop regression test observes native paint/erase/size events during
 both workbench splitter drags and verifies stable scrolling causes no resize.
+
+## Embedded resources and distribution
+
+`scripts/embed_assets.py` embeds all files beneath `res/`, project documentation,
+the original SDK integration guide and dependency notices into `generated/assets.hpp`.
+Resources retain their exact bytes, including binary data and NULs. File additions,
+changes and removals trigger CMake regeneration. Extra build resources can be mounted
+with `--directory PREFIX=PATH` or `--file NAME=PATH` in `cmake/EmbeddedAssets.cmake`.
+
+`DesktopWindow` accepts a resource loader before XML controls are created, so nested
+XML and images use the embedded registry too. The application uses `assets::Get/Load`;
+no native wxWidgets calls are needed. SDK documentation and About/licenses are
+available inside the application. Windows installation/CPack output contains only
+`sovkit-devtools.exe` and the supplied `libsovkit.dll`; the console remains a separate
+build/test target and is installed only for console-only builds.

@@ -1,43 +1,28 @@
-# 2026-09-20 调试构建与 libwxui 评估
+# 调试与职责边界（2026-09-20 更新）
 
-本轮面向本机 macOS arm64、Windows x64 手工调试，不是发行包。SDK 使用最新发现层/IPv6 修改及 Windows 宏兼容修复，ABI25、84个导出、58个JSON操作。两端库按各自平台原生构建；不是把 Mac 二进制复制到 Windows。
+## 当前 SDK 接入
 
-## 构建与启动
+默认使用 `3rdparty/sovkit_sdk/0.1.0` 的 SovKit 交付包，当前内容为
+`sovkit.h`、`libsovkit.dll`、`SDK_INTEGRATION.md`。开发者只需这些公开交付材料；
+SDK 契约与所有解释以 SovKit 项目及随包文档为准。
 
-本机已准备忽略提交的 `CMakeUserPresets.json`，复用本机现有依赖，命令：
+旧的 `.sdk/*-current` 暂存、相邻 SDK 源码重建流程已被替代，不属于 DevTools 的构建入口。
+SDK 修复由 SovKit 完成并交付完整包；DevTools 原样引用，不修改头文件、动态库或说明。
+本机历史 `.build/rebuild-current.ps1` 不再用于本项目的 SDK 更新流程。
 
-```sh
-cd /Users/martell/Developer/sovkit-devtools
-python3 scripts/build.py local-macos-debug-current --sdk .sdk/macos-arm64-current --test
-open .build/local-macos-debug-current/sovkit-devtools.app
+Windows 构建、测试：
+
+```bat
+cmake --preset windows-debug
+cmake --build --preset windows-debug
+ctest --preset windows-debug
 ```
 
-Windows x64 Developer PowerShell：
-
-```powershell
-cd C:\Users\k34ub\Developer\sovkit-devtools
-$env:VCPKG_ROOT = 'C:/Users/k34ub/Developer/vcpkg'
-python scripts/build.py windows-x64-debug --sdk .sdk/windows-x64-current --test
-& ./.build/windows-x64-debug/sovkit-devtools.exe
-```
-
-本机 GUI/SDK 均为 Debug。Windows GUI、SDK DLL 及匹配 `libsovkit.pdb` 也使用 Debug；GUI 自身 PDB 由 MSVC 生成。调试器可启动对应 exe/应用内部可执行文件，在 `src/app.cpp`、`src/sdk.cpp` 或 SDK 源码设置断点。VS Code 可使用已有的 C++/LLDB 调试扩展选择该程序；不要把本机私有路径提交为通用设置。
-
-**修改 SDK 后，先退出已加载它的工具，重新编译 SDK 并刷新 `.sdk/*-current`，再构建工具。** `scripts/build.py`只负责消费独立SDK，不会暗中重建相邻SDK源码。本次在Windows保留 `.build/rebuild-current.ps1`，可在普通 PowerShell执行，自动初始化VS环境、重建当前SDK并暂存DLL/PDB，随后构建和测试工具。这个文件是本机维护辅助，不是工具的公开构建依赖。
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .build/rebuild-current.ps1
-```
-
-默认临时测试身份；需要重启恢复时使用独立测试目录与密码。不要选择直予产品数据目录。停止身份不会卸载 DLL，换库必须重启工具。
-
-## 已修复
-
-- SDK `discovery.cpp` 的局部变量 `interface` 与 Windows SDK 宏冲突；改为 `multicast_interface`，不改变网络协议/行为。
-- macOS构建入口显式使用选定Xcode的SDK，避免混用不兼容的Command Line Tools SDK。
-- 构建入口允许 `--cmake-arg=-DNAME=value`；显式指定与脚本一致的构建目录，避免用户预设binaryDir导致配置/编译路径不同。
-- Windows暂存SDK时同时复制存在的匹配PDB，方便源码调试。
-- JSON响应区实际接入libwxui `UIManager + JsonViewer`，保留原始JSON、格式化及语法着色。GUI自检记录组件类型、原始JSON一致性和左右区域宽度。
+程序为 `out/Debug/sovkit-devtools.exe`，构建会将交付的 DLL 原样复制到同目录。
+启动后自动读取 exe 目录的 `libsovkit.dll`，工作目录不影响 SDK 定位。
+Debug/Release 只控制 DevTools；SDK 调试信息和对应版本均由 SovKit 提供。
+默认临时测试身份；需要重启恢复时选择独立测试目录和密码。
+停止身份不会卸载 DLL，替换 SDK 后需重新启动程序。
 
 ## libwxui 评估
 

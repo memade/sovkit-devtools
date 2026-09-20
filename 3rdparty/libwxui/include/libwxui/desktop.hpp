@@ -19,12 +19,14 @@ struct DesktopWindowSpec {
 // A copyable, thread-safe sender. Queued callbacks are discarded on window
 // close; retained senders safely return false after their owner is destroyed.
 using UiPost = std::function<bool(std::function<void()>)>;
+using DesktopResourceLoader = std::function<bool(const std::string&, std::string*)>;
 
 // Composition keeps native window methods out of application controllers.
 // All methods except the sender returned by Poster() run on the UI thread.
 class DesktopWindow {
 public:
-    DesktopWindow(const DesktopWindowSpec& spec, const std::string& xml);
+    DesktopWindow(const DesktopWindowSpec& spec, const std::string& xml,
+                  DesktopResourceLoader resources = {});
     ~DesktopWindow();
     DesktopWindow(const DesktopWindow&) = delete;
     DesktopWindow& operator=(const DesktopWindow&) = delete;

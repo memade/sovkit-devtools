@@ -1,62 +1,26 @@
 #include <libwxui/appearance.hpp>
-#include <wx/filename.h>
-#include <wx/stdpaths.h>
 #include <wx/fontenum.h>
+#include <wx/settings.h>
 #include <mutex>
 #include <algorithm>
-#ifdef __WXMSW__
-#include <wx/msw/wrapwin.h>
-#elif defined(__WXOSX__)
-#include <CoreText/CoreText.h>
-#else
-#include <fontconfig/fontconfig.h>
-#include <pango/pangocairo.h>
-#include <pango/pangofc-fontmap.h>
-#endif
 
 namespace wxui {
 namespace {
 wxFont uiFont, codeFont;
 std::once_flag initialized;
-bool RegisterFont(const wxString& path) {
-#ifdef __WXMSW__
-    return AddFontResourceExW(path.wc_str(), FR_PRIVATE, nullptr) > 0;
-#elif defined(__WXOSX__)
-    const auto bytes = path.ToUTF8();
-    auto url = CFURLCreateFromFileSystemRepresentation(nullptr,
-        reinterpret_cast<const UInt8*>(bytes.data()), bytes.length(), false);
-    if (!url) return false;
-    const bool result = CTFontManagerRegisterFontsForURL(url, kCTFontManagerScopeProcess, nullptr);
-    CFRelease(url);
-    return result;
-#else
-    const auto bytes = path.ToUTF8();
-    if (!FcConfigAppFontAddFile(FcConfigGetCurrent(), reinterpret_cast<const FcChar8*>(bytes.data()))) return false;
-    auto* map = pango_cairo_font_map_get_default();
-    if (PANGO_IS_FC_FONT_MAP(map)) pango_fc_font_map_config_changed(PANGO_FC_FONT_MAP(map));
-    return true;
-#endif
-}
 }
 void InitializeTypography() {
     std::call_once(initialized, [] {
-        wxFileName executable(wxStandardPaths::Get().GetExecutablePath());
-        wxString directory = executable.GetPath() + "/fonts/";
-#ifdef __WXOSX__
-        const auto bundled = executable.GetPath() + "/../Resources/fonts/";
-        if (wxDirExists(bundled)) directory = bundled;
+        // Let the OS choose its native UI face and CJK fallback fonts.
+        uiFont = wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT);
+#ifdef __WXMSW__
+        if (wxFontEnumerator::IsValidFacename("Microsoft YaHei"))
+            uiFont.SetFaceName("Microsoft YaHei");
+        uiFont.SetPointSize(11);
+        codeFont = uiFont;
+#else
+        codeFont = wxFont(wxFontInfo(uiFont.GetPointSize()).Family(wxFONTFAMILY_TELETYPE));
 #endif
-        for (const auto* filename : {"NotoSansCJKsc-Regular.otf", "NotoSansMonoCJKsc-Regular.otf"}) {
-            const wxString path = directory + filename;
-            if (wxFileExists(path)) RegisterFont(path);
-        }
-        wxFontEnumerator::InvalidateCache();
-        wxFontInfo ui(11), code(11);
-        ui.Family(wxFONTFAMILY_SWISS);
-        code.Family(wxFONTFAMILY_TELETYPE);
-        if (wxFontEnumerator::IsValidFacename("Noto Sans CJK SC")) ui.FaceName("Noto Sans CJK SC");
-        if (wxFontEnumerator::IsValidFacename("Noto Sans Mono CJK SC")) code.FaceName("Noto Sans Mono CJK SC");
-        uiFont = wxFont(ui); codeFont = wxFont(code);
     });
 }
 wxFont InterfaceFont() { InitializeTypography(); return uiFont; }

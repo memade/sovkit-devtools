@@ -3,8 +3,8 @@
 #include <wx/font.h>
 
 namespace wxui {
-// Fonts are registered privately for this process from the packaged fonts directory.
-// Missing resources fall back to a platform sans-serif/monospace font.
+// System-installed fonts only: Microsoft YaHei on Windows, native GUI and
+// monospace defaults on macOS/Linux. No font files or private registration.
 void InitializeTypography();
 wxFont InterfaceFont();
 wxFont CodeFont();

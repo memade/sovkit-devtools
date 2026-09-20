@@ -612,8 +612,10 @@ bool SdiFrame::LoadContent(const std::string& resourceRoot,
     return mgr->LoadFromFile(xmlPath);
 }
 
-bool SdiFrame::LoadContentXml(const std::string& xml) {
-    return EnsureUiManager()->LoadFromString(xml);
+bool SdiFrame::LoadContentXml(const std::string& xml, UIManager::ResourceLoader resources) {
+    auto* manager = EnsureUiManager();
+    manager->SetResourceLoader(std::move(resources));
+    return manager->LoadFromString(xml);
 }
 
 MdiFrame::MdiFrame(const FrameSpec& spec, wxWindow* parent, wxWindowID id)

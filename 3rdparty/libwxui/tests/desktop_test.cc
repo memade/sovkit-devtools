@@ -1,7 +1,9 @@
 #include <libwxui.hpp>
 #include <libwxui/text_editor.hpp>
 #include <libwxui/appearance.hpp>
-#include "banner.hpp"
+#include "assets.hpp"
+#include <wx/fontenum.h>
+#include <wx/settings.h>
 #include <iostream>
 #include <thread>
 #include <wx/dcmemory.h>
@@ -33,7 +35,7 @@ class DesktopTest : public wxui::Application {
 
     bool OnAppInit() override {
         window_ = std::make_unique<wxui::DesktopWindow>(
-            wxui::DesktopWindowSpec{"libwxui tests", {1260, 860}, {980, 700}, 2}, kWorkbench);
+            wxui::DesktopWindowSpec{"libwxui tests", {1260, 860}, {980, 700}, 2}, devtools::assets::Get("workbench.xml"), devtools::assets::Load);
         window_->Present();
         sender_ = window_->Poster();
         std::thread producer([this] { sender_([this] { run(); }); });
@@ -44,8 +46,17 @@ class DesktopTest : public wxui::Application {
         try {
             ++delivered_;
             window_->RefreshLayout();
-            check(wxui::InterfaceFont().GetFaceName() == "Noto Sans CJK SC", "bundled UI font loaded");
-            check(wxui::CodeFont().GetFaceName() == "Noto Sans Mono CJK SC", "bundled code font loaded");
+            check(wxui::InterfaceFont().IsOk() && wxui::CodeFont().IsOk(), "system fonts available");
+#ifdef __WXMSW__
+            if (wxFontEnumerator::IsValidFacename("Microsoft YaHei"))
+                check(wxui::InterfaceFont().GetFaceName() == "Microsoft YaHei", "Windows uses Microsoft YaHei");
+#else
+            check(wxui::InterfaceFont().GetFaceName() == wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT).GetFaceName(), "native system UI font");
+#endif
+            std::string embedded;
+            check(window_->Require<wxui::Control>("title")->GetManager()->LoadResourceBytes("banner.xml", &embedded), "resource loader wired into UI");
+            check(embedded == devtools::assets::Get("banner.xml"), "embedded XML bytes match");
+            check(!devtools::assets::Notices().empty(), "licenses included in executable");
             // Verify actual painted glyph bounds, not just alignment attributes.
             wxBitmap sample(160, 60);
             wxMemoryDC dc(sample); dc.SetBackground(*wxWHITE_BRUSH); dc.Clear();

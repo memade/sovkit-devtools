@@ -49,7 +49,8 @@ struct DesktopWindow::Impl {
     }
 };
 
-DesktopWindow::DesktopWindow(const DesktopWindowSpec& spec, const std::string& xml)
+DesktopWindow::DesktopWindow(const DesktopWindowSpec& spec, const std::string& xml,
+                             DesktopResourceLoader resources)
     : impl_(std::make_unique<Impl>()) {
     FrameSpec native;
     native.title = spec.title;
@@ -61,7 +62,7 @@ DesktopWindow::DesktopWindow(const DesktopWindowSpec& spec, const std::string& x
     if (frame->GetStatusBar()) frame->GetStatusBar()->SetFont(InterfaceFont());
     impl_->frame = frame;
     frame->SetMinSize({spec.minimumSize.width, spec.minimumSize.height});
-    if (!frame->LoadContentXml(xml)) throw std::runtime_error("Invalid window UI XML");
+    if (!frame->LoadContentXml(xml, std::move(resources))) throw std::runtime_error("Invalid window UI XML");
     impl_->manager = frame->GetUIManager();
     frame->Bind(wxEVT_CLOSE_WINDOW, &Impl::Close, impl_.get());
 }
