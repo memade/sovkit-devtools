@@ -10,8 +10,8 @@ if not exist "%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake" (
 )
 cmake --preset windows-debug
 if errorlevel 1 goto :failed
-set "SOVKIT_SOLUTION=%CD%\out\sovkit-devtools.sln"
-if exist "%CD%\out\sovkit-devtools.slnx" set "SOVKIT_SOLUTION=%CD%\out\sovkit-devtools.slnx"
+set "SOVKIT_SOLUTION=%CD%\.build\windows-vs2026-x64\sovkit-devtools.sln"
+if exist "%CD%\.build\windows-vs2026-x64\sovkit-devtools.slnx" set "SOVKIT_SOLUTION=%CD%\.build\windows-vs2026-x64\sovkit-devtools.slnx"
 if not exist "%SOVKIT_SOLUTION%" goto :failed
 echo.
 echo Open "%SOVKIT_SOLUTION%" in Visual Studio and select Debug / x64.

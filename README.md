@@ -105,7 +105,7 @@ List presets with `cmake --list-presets=all`. The optional `scripts/build.py <pr
 
 #### Windows
 
-On Windows, use **Visual Studio 2026** with Desktop development with C++, CMake 4.2+, Python 3.8+, and vcpkg. CMake and Python must be on PATH. Set the `VCPKG_ROOT` user environment variable in Windows, then reopen applications. The supplied SDK is selected by default. Double-click [`scripts/build-vs2026.bat`](scripts/build-vs2026.bat) to generate and open `out/sovkit-devtools.slnx`. Select **Debug / x64**, build the solution, set breakpoints, and press **F5**. If needed, right-click `sovkit-devtools` and select **Set as Startup Project**. Older CMake versions may generate `.sln` instead; the script recognizes both formats. This workflow does not require Ninja or PowerShell.
+On Windows, use **Visual Studio 2026** with Desktop development with C++, CMake 4.2+, Python 3.8+, and vcpkg. CMake and Python must be on PATH. Set the `VCPKG_ROOT` user environment variable in Windows, then reopen applications. The supplied SDK is selected by default. Double-click [`scripts/build-vs2026.bat`](scripts/build-vs2026.bat) to generate and open `.build/windows-vs2026-x64/sovkit-devtools.slnx`. Select **Debug / x64**, build the solution, set breakpoints, and press **F5**. If needed, right-click `sovkit-devtools` and select **Set as Startup Project**. Older CMake versions may generate `.sln` instead; the script recognizes both formats. This workflow does not require Ninja or PowerShell.
 
 The generated Visual Studio solution separates applications, static libraries, tests and build helpers:
 
@@ -143,11 +143,11 @@ cmake --build --preset windows-release
 
 CMake defaults to `3rdparty/sovkit_sdk/0.1.0` and migrates the former built-in `.sdk/windows-x64-current` cache path. To select a different SovKit-supplied package, configure with `-DSOVKIT_SDK_ROOT=C:/other/sdk` or use `scripts/build.py --sdk /path/sdk`. The environment variable of the same name no longer overrides this default. The build cache retains an explicit selection.
 
-Build individual targets with `cmake --build --preset windows-debug --target sovkit-devtools` or `--target sovkit-console`. Both configurations share the `out/` solution; executables go to `out/Debug/` or `out/Release/`. GUI builds copy the selected SDK DLL unchanged, plus a matching PDB only if SovKit supplied one. Debug/Release changes only the DevTools build; the supplied SDK remains unchanged. Stop the application before replacing its SDK.
+Build individual targets with `cmake --build --preset windows-debug --target sovkit-devtools` or `--target sovkit-console`. Both configurations share the `.build/windows-vs2026-x64/` solution; executables go to `.build/windows-vs2026-x64/Debug/` or `.build/windows-vs2026-x64/Release/`. GUI builds copy the selected SDK DLL unchanged, plus a matching PDB only if SovKit supplied one. Debug/Release changes only the DevTools build; the supplied SDK remains unchanged. Stop the application before replacing its SDK.
 
 The existing `windows-x64-debug` / `windows-x64-release` Ninja presets also support the configure/build/test commands above or `scripts/build.py` from an x64 developer shell. Use CMake directly or Visual Studio for the `windows-debug` / `windows-release` presets, not `build.py`.
 
-Ninja build outputs go under `.build/<preset>/`; Visual Studio outputs go under `out/<configuration>/`. Windows/Linux produce a `sovkit-devtools` executable with the platform's usual extension. SDK binaries must match the target OS and architecture; an Android `.so` is not a Linux desktop SDK.
+All platforms keep build outputs under `.build/`. Ninja uses `.build/<preset>/`; Visual Studio uses one `.build/windows-vs2026-x64/` solution with `<configuration>/` subdirectories so Debug and Release can be switched in the IDE. Reconfigure with the updated preset to create this directory; CMake caches from the former `out/` directory cannot be moved here. Windows/Linux produce a `sovkit-devtools` executable with the platform's usual extension. SDK binaries must match the target OS and architecture; an Android `.so` is not a Linux desktop SDK.
 
 For existing dependency installations, configure with `-DSOVKIT_SDK_ROOT=/path/sdk` and `-DCMAKE_PREFIX_PATH=/path/dependencies`. Set `-DDEVTOOLS_BUILD_GUI=OFF` to build only the console and integration tests. Local packages are not a signed or notarized public release.
 
@@ -155,13 +155,13 @@ For existing dependency installations, configure with `-DSOVKIT_SDK_ROOT=/path/s
 
 The GUI ZIP contains only `sovkit-devtools.exe` and `libsovkit.dll`. XML, images,
 SDK documentation and license notices are embedded by `scripts/embed_assets.py`;
-SDK documentation and About/licenses can be opened inside the application.
+SDK documentation and Ab.build/windows-vs2026-x64/licenses can be opened inside the application.
 Windows uses installed Microsoft YaHei; macOS/Linux use native system fonts.
 No font or resource directory is required. The console remains a build/test target.
 
 ```bat
 cmake --build --preset windows-release
-cpack --config out/CPackConfig.cmake -C Release -B .build/packages
+cpack --config .build/windows-vs2026-x64/CPackConfig.cmake -C Release -B .build/packages
 ```
 
 Distribute the ZIP, not the development output directory, which may contain PDBs,

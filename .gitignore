@@ -72,7 +72,6 @@ Testing/
 .cache/
 
 .build/
-out/
 .vs/
 .sdk/
 .DS_Store

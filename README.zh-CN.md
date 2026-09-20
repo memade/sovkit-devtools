@@ -86,7 +86,7 @@ cmake --build --preset linux-release
 
 使用 `cmake --list-presets=all` 查看配置、构建和测试预设。Ninja 预设仍可使用可选的一键入口 `python3 scripts/build.py <preset> --sdk /path/sdk --test`。
 
-Ninja 构建目录为 `.build/<preset>/`，Visual Studio 为 `out/<configuration>/`。macOS 启动 `.build/<preset>/sovkit-devtools.app`；Windows/Linux 启动相应可执行文件。macOS Release 构建完成后，可生成本地 ZIP：
+所有平台的构建产物统一放在 `.build/`：Ninja 使用 `.build/<preset>/`，Visual Studio 使用 `.build/windows-vs2026-x64/<configuration>/`。VS 的 Debug/Release 共用一个解决方案，方便在 IDE 内切换。更新后重新执行配置命令即可生成新目录，不要直接搬移旧 `out/` 里的 CMake 缓存。macOS 启动 `.build/<preset>/sovkit-devtools.app`；Windows/Linux 启动相应可执行文件。macOS Release 构建完成后，可生成本地 ZIP：
 
 ```sh
 cpack --config .build/macos-arm64-release/CPackConfig.cmake -B .build/packages
@@ -100,9 +100,9 @@ cpack --config .build/macos-arm64-release/CPackConfig.cmake -B .build/packages
 
 采用与 OrbitBridge 相同的 CMake Visual Studio 生成器。安装 Visual Studio 2026 的“使用 C++ 的桌面开发”、CMake ≥4.2、Python ≥3.8 和 vcpkg；CMake、Python 需在 PATH 中。此方式不需要 Ninja 或 PowerShell。
 
-**鼠标操作：** 在 Windows“编辑账户的环境变量”中设置 `VCPKG_ROOT`（vcpkg 根目录，SDK 默认使用仓库内的交付包），然后重新打开相关程序。双击 [`scripts/build-vs2026.bat`](scripts/build-vs2026.bat)，等待依赖安装、配置完成，脚本会打开 `out/sovkit-devtools.slnx`。选择 **Debug / x64**，执行“生成解决方案”，在 `src/app.cpp` 或 `src/sdk.cpp` 下断点并按 **F5**。若启动项不是 `sovkit-devtools`，右键该项目选择“设为启动项目”。较早版本的 CMake 可能生成 `.sln`，脚本兼容两种格式。
+**鼠标操作：** 在 Windows“编辑账户的环境变量”中设置 `VCPKG_ROOT`（vcpkg 根目录，SDK 默认使用仓库内的交付包），然后重新打开相关程序。双击 [`scripts/build-vs2026.bat`](scripts/build-vs2026.bat)，等待依赖安装、配置完成，脚本会打开 `.build/windows-vs2026-x64/sovkit-devtools.slnx`。选择 **Debug / x64**，执行“生成解决方案”，在 `src/app.cpp` 或 `src/sdk.cpp` 下断点并按 **F5**。若启动项不是 `sovkit-devtools`，右键该项目选择“设为启动项目”。较早版本的 CMake 可能生成 `.sln`，脚本兼容两种格式。
 
-未设置 `VCPKG_ROOT` 时，双击脚本会尝试 `%USERPROFILE%/vcpkg`。它只生成并打开解决方案，不删除已有构建。若需手动打开，直接双击 `out/sovkit-devtools.slnx`。
+未设置 `VCPKG_ROOT` 时，双击脚本会尝试 `%USERPROFILE%/vcpkg`。它只生成并打开解决方案，不删除已有构建。若需手动打开，直接双击 `.build/windows-vs2026-x64/sovkit-devtools.slnx`。
 
 CMake 默认使用 `3rdparty/sovkit_sdk/0.1.0`，并迁移旧的内置 `.sdk/windows-x64-current` 缓存路径。如需其他 SovKit 交付包，传入 `-DSOVKIT_SDK_ROOT=C:/other/sdk` 或 `scripts/build.py --sdk /path/sdk`。同名环境变量不再覆盖默认选择；显式选择会保存在构建缓存中。
 
@@ -125,7 +125,7 @@ cmake --build --preset windows-debug --target sovkit-devtools
 cmake --build --preset windows-debug --target sovkit-console
 ```
 
-Debug/Release 共用 `out/` 解决方案，程序分别输出到 `out/Debug/` 和 `out/Release/`。GUI 构建只原样复制选定 SDK 的 DLL，以及 SovKit 随包提供的匹配 PDB（如有）。Debug/Release 只控制 DevTools；SDK 升级由 SovKit 交付新的完整包，退出工具后更换包并重新构建。
+Debug/Release 共用 `.build/windows-vs2026-x64/` 解决方案，程序分别输出到 `.build/windows-vs2026-x64/Debug/` 和 `.build/windows-vs2026-x64/Release/`。GUI 构建只原样复制选定 SDK 的 DLL，以及 SovKit 随包提供的匹配 PDB（如有）。Debug/Release 只控制 DevTools；SDK 升级由 SovKit 交付新的完整包，退出工具后更换包并重新构建。
 
 原有 `windows-x64-debug` / `windows-x64-release` 仍为 Ninja 预设，也支持配置、构建和测试的 preset 命令，或在 x64 开发者终端使用 `scripts/build.py`，输出到 `.build/<preset>/`。`windows-debug` / `windows-release` 请使用上述 CMake 命令或 Visual Studio，不经过 `build.py`。
 
@@ -138,10 +138,10 @@ XML、图片等 `res/` 资源、SDK 接入原文和许可说明由 `scripts/embe
 
 ```bat
 cmake --build --preset windows-release
-cpack --config out/CPackConfig.cmake -C Release -B .build/packages
+cpack --config .build/windows-vs2026-x64/CPackConfig.cmake -C Release -B .build/packages
 ```
 
-`out/Release` 是开发构建目录，可能含 PDB、测试程序或旧资源；对外分发使用生成的 ZIP。
+`.build/windows-vs2026-x64/Release` 是开发构建目录，可能含 PDB、测试程序或旧资源；对外分发使用生成的 ZIP。
 控制台保留为构建和测试目标，GUI 发布包不包含它。
 
 ## 第一次手测

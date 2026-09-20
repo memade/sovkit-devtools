@@ -18,7 +18,7 @@ cmake --build --preset windows-debug
 ctest --preset windows-debug
 ```
 
-程序为 `out/Debug/sovkit-devtools.exe`，构建会将交付的 DLL 原样复制到同目录。
+程序为 `.build/windows-vs2026-x64/Debug/sovkit-devtools.exe`，构建会将交付的 DLL 原样复制到同目录。
 启动后自动读取 exe 目录的 `libsovkit.dll`，工作目录不影响 SDK 定位。
 Debug/Release 只控制 DevTools；SDK 调试信息和对应版本均由 SovKit 提供。
 默认临时测试身份；需要重启恢复时选择独立测试目录和密码。

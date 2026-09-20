@@ -17,7 +17,7 @@
       "inherits": "windows-x64-debug",
       "generator": "Visual Studio 18 2026",
       "architecture": {"value": "x64", "strategy": "set"},
-      "binaryDir": "${sourceDir}/out",
+      "binaryDir": "${sourceDir}/.build/windows-vs2026-x64",
       "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows"},
       "cacheVariables": {"CMAKE_BUILD_TYPE": null}
     },

@@ -10,12 +10,12 @@
 
 选择 **DevTools · Windows x64 Debug**。任务依次执行 `cmake --preset windows-debug`、
 `cmake --build --preset windows-debug --parallel 4`，随后用 MSVC 调试器启动
-`out/Debug/sovkit-devtools.exe`。不要求从 Developer PowerShell 启动 VS Code。
+`.build/windows-vs2026-x64/Debug/sovkit-devtools.exe`。不要求从 Developer PowerShell 启动 VS Code。
 
 需要 Visual Studio 2026 的“使用 C++ 的桌面开发”、CMake 4.2+、Python 3.8+ 和 vcpkg。
 设置 `VCPKG_ROOT` 后重新打开 VS Code，确保 `cmake`、`ctest`、`python` 在 PATH 中。
 默认 SDK 为 `3rdparty/sovkit_sdk/0.1.0`。现有 CMake 缓存中的显式 SDK 选择会保留。
-程序的 PDB 在 `out/Debug`；只有 SovKit 提供匹配 PDB/源码时才能进入 SDK 内部调试。
+程序的 PDB 在 `.build/windows-vs2026-x64/Debug`；只有 SovKit 提供匹配 PDB/源码时才能进入 SDK 内部调试。
 
 ## Linux x64 / arm64（未实机验证）
 
