@@ -157,15 +157,21 @@ public:
     ws->Add(actions, 0, wxEXPAND);
     auto *editors = new wxSplitterWindow(workspace, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxSP_LIVE_UPDATE);
     request_ = new wxTextCtrl(editors, wxID_ANY, "{}", wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_DONTWRAP);
-    response_ = new wxTextCtrl(editors, wxID_ANY, w("响应（本机可见；不会自动写入文件）"), wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_READONLY | wxTE_DONTWRAP);
-    auto font = wxFontInfo(12).Family(wxFONTFAMILY_TELETYPE); request_->SetFont(font); response_->SetFont(font);
-    editors->SplitVertically(request_, response_, 350); editors->SetMinimumPaneSize(200); editors->SetSashGravity(.45);
+    responsePanel_ = new wxui::UIManager(editors);
+    const std::string responseXml = R"(<Window bkcolor="#FFF8FAFC"><VerticalLayout><JsonViewer name="response" mode="pretty" wraplines="false" textcolor="#FF172B3A" bkcolor="#FFF8FAFC"/></VerticalLayout></Window>)";
+    if (!responsePanel_->LoadFromString(responseXml)) throw std::runtime_error("Invalid response UI XML");
+    response_ = dynamic_cast<wxui::JsonViewer*>(responsePanel_->FindControl("response"));
+    if (!response_) throw std::runtime_error("Missing response JsonViewer");
+    response_->SetJson("响应（本机可见；不会自动写入文件）");
+    auto font = wxFontInfo(12).Family(wxFONTFAMILY_TELETYPE); request_->SetFont(font);
+    responsePanel_->SetUIFont(font);
+    editors->SplitVertically(request_, responsePanel_, 350); editors->SetMinimumPaneSize(200); editors->SetSashGravity(.45);
     ws->Add(editors, 1, wxEXPAND | wxALL, 6); workspace->SetSizer(ws);
     outer->SplitVertically(nav, workspace, 250); outer->SetMinimumPaneSize(200); root->Add(outer, 1, wxEXPAND | wxALL, 5);
 
     auto *foot = new wxPanel(this); auto *fsz = new wxBoxSizer(wxHORIZONTAL);
     fsz->Add(new wxStaticText(foot, wxID_ANY, w("事件自动轮询 · 只在内存保留最近记录")), 1, wxALIGN_CENTER_VERTICAL | wxALL, 8);
-    button(foot, fsz, "清空显示", [this] { events_->Clear(); history_->Clear(); logs_->Clear(); response_->Clear(); diagnostics_.clear(); });
+    button(foot, fsz, "清空显示", [this] { events_->Clear(); history_->Clear(); logs_->Clear(); response_->SetJson(""); diagnostics_.clear(); });
     button(foot, fsz, "导出诊断元数据…", [this] { export_report(); });
     foot->SetSizer(fsz); root->Add(foot, 0, wxEXPAND);
     auto *tabs = new wxNotebook(this, wxID_ANY);
@@ -238,7 +244,7 @@ private:
     if (pending_) --pending_;
     if (op == "load" && row.value("code", -1) == 0) loaded_ = true;
     execute_->Enable(!closing_ && pending_ == 0); start_->Enable(!closing_ && pending_ == 0); load_->Enable(!loaded_ && !closing_ && pending_ == 0);
-    response_->SetValue(w(row.dump(2)));
+    response_->SetJson(row.dump());
     append(history_, op + "  code=" + std::to_string(row.value("code", -1)) + "  " + std::to_string(row.value("elapsedMs", 0)) + " ms");
     diagnostics_.push_back(diagnostic(row)); if (diagnostics_.size() > 500) diagnostics_.pop_front();
     SetStatusText(w(op + (row.value("code", -1) == 0 ? " · 完成，请查看业务状态" : " · 失败，请查看响应")));
@@ -249,7 +255,9 @@ private:
     } else if (!smoke_.empty() && (op == "selftest" || op == "load")) {
       Json report = diagnostic(row);
       report["clientWidth"] = GetClientSize().GetWidth(); report["clientHeight"] = GetClientSize().GetHeight();
-      report["requestWidth"] = request_->GetSize().GetWidth(); report["responseWidth"] = response_->GetSize().GetWidth();
+      report["responseViewer"] = "libwxui::JsonViewer";
+      report["responseJsonMatches"] = Json::parse(response_->GetRawJson()) == row;
+      report["requestWidth"] = request_->GetSize().GetWidth(); report["responseWidth"] = responsePanel_->GetSize().GetWidth();
       std::ofstream output(smoke_, std::ios::binary); output << report.dump(2) << '\n';
       // The smoke runner closes this window after inspecting the rendered UI.
     }
@@ -272,7 +280,9 @@ private:
     auto *s = new wxBoxSizer(wxVERTICAL); s->Add(text, 1, wxEXPAND | wxALL, 10); dlg->SetSizer(s); dlg->ShowModal(); dlg->Destroy();
   }
   std::unique_ptr<Worker> worker_;
-  wxTextCtrl *library_, *device_, *profile_, *password_, *request_, *response_, *help_, *events_, *history_, *logs_;
+  wxTextCtrl *library_, *device_, *profile_, *password_, *request_, *help_, *events_, *history_, *logs_;
+  wxui::UIManager *responsePanel_;
+  wxui::JsonViewer *response_;
   wxStaticText *title_;
   wxTreeCtrl *tree_;
   wxButton *load_, *start_, *stop_, *execute_;

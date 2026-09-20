@@ -97,3 +97,5 @@ python scripts/build.py windows-x64-debug --sdk C:/SDK --test
 
 `ctest` 的双进程测试是本机回环，不代替 macOS ↔ Windows 真机互通或系统蓝牙验收。
 蓝牙页目前只有 SDK 完整帧接口，未实现 Windows/macOS GATT 驱动。
+
+当前本机/Windows Debug构建、源码断点和libwxui评估见 [2026-09-20调试对齐记录](docs/DEBUG_ALIGNMENT_20260920.md)。
