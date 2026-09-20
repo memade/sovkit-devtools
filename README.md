@@ -72,6 +72,28 @@ Open `.build/macos-arm64-debug/sovkit-devtools.app` on macOS. Use `macos-arm64-r
 
 On Windows, use **Visual Studio 2026** with Desktop development with C++, CMake 4.2+, Python 3.8+, and vcpkg. CMake and Python must be on PATH. Set the `VCPKG_ROOT` user environment variable in Windows, then reopen applications. The supplied SDK is selected by default. Double-click [`scripts/build-vs2026.bat`](scripts/build-vs2026.bat) to generate and open `out/sovkit-devtools.slnx`. Select **Debug / x64**, build the solution, set breakpoints, and press **F5**. If needed, right-click `sovkit-devtools` and select **Set as Startup Project**. Older CMake versions may generate `.sln` instead; the script recognizes both formats. This workflow does not require Ninja or PowerShell.
 
+The generated Visual Studio solution separates applications, static libraries, tests and build helpers:
+
+```text
+3rdparty/
+  libwxui
+  sovkit-sdk                 # Browse the supplied header and integration guide
+projects/
+  sovkit-devtools             # Default startup project
+  sovkit-console
+libraries/
+  devtools_core
+tests/
+  devtools-core-tests
+  libwxui-desktop-tests
+CMakeTargets/
+  ALL_BUILD, ZERO_CHECK, INSTALL, PACKAGE, RUN_TESTS
+  staging/                   # SDK runtime and optional symbols
+  CTestDashboard/
+```
+
+Project filters mirror `src`, `include`, `res`, `docs`, `scripts` and `cmake` where applicable; generated headers have a separate `generated` filter. The GUI project also exposes the root build settings and VS Code configuration. These are IDE groups, not relocated files. After updating CMake, run `cmake --preset windows-debug` and reload the solution when Visual Studio prompts. The layout is maintained in `cmake/IdeLayout.cmake`; do not edit generated `.slnx`, `.vcxproj` or `.filters` files. Console-only builds use `sovkit-console` as the startup project.
+
 The script falls back to `%USERPROFILE%/vcpkg` when `VCPKG_ROOT` is unset. It preserves existing build directories. Alternatively, use ordinary **CMD** from the repository root, following the same preset workflow as OrbitBridge:
 
 ```bat
