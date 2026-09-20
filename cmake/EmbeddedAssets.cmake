@@ -6,7 +6,10 @@ macro(devtools_embed_file name path)
   list(APPEND devtools_asset_inputs "${path}")
 endmacro()
 macro(devtools_embed_directory name path)
-  file(GLOB_RECURSE devtools_directory_assets CONFIGURE_DEPENDS LIST_DIRECTORIES false "${path}/*")
+  file(
+    GLOB_RECURSE devtools_directory_assets CONFIGURE_DEPENDS
+    LIST_DIRECTORIES false
+    "${path}/*")
   list(APPEND devtools_asset_args --directory "${name}=${path}")
   list(APPEND devtools_asset_inputs ${devtools_directory_assets})
 endmacro()
@@ -16,18 +19,21 @@ devtools_embed_directory("docs" "${CMAKE_CURRENT_SOURCE_DIR}/docs")
 devtools_embed_file("SDK_INTEGRATION.md" "${SOVKIT_SDK_DOCUMENTATION}")
 devtools_embed_file("LICENSE" "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 devtools_embed_file("NOTICE.md" "${CMAKE_CURRENT_SOURCE_DIR}/NOTICE.md")
-devtools_embed_file("licenses/tools/libwxui/LICENSE" "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/libwxui/LICENSE")
+devtools_embed_file("licenses/tools/libwxui/LICENSE"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/libwxui/LICENSE")
 foreach(notice LICENSE NOTICE.md)
   if(EXISTS "${SOVKIT_SDK_ROOT}/${notice}")
     devtools_embed_file("licenses/sdk/${notice}" "${SOVKIT_SDK_ROOT}/${notice}")
   endif()
 endforeach()
 if(EXISTS "${SOVKIT_SDK_ROOT}/licenses")
-  devtools_embed_directory("licenses/sdk/supplied" "${SOVKIT_SDK_ROOT}/licenses")
+  devtools_embed_directory("licenses/sdk/supplied"
+                           "${SOVKIT_SDK_ROOT}/licenses")
 endif()
 set(devtools_notice_roots ${CMAKE_PREFIX_PATH})
 if(DEFINED VCPKG_INSTALLED_DIR AND DEFINED VCPKG_TARGET_TRIPLET)
-  list(PREPEND devtools_notice_roots "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
+  list(PREPEND devtools_notice_roots
+       "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
 endif()
 set(devtools_embedded_ports)
 foreach(root IN LISTS devtools_notice_roots)
@@ -41,6 +47,12 @@ foreach(root IN LISTS devtools_notice_roots)
     endif()
   endforeach()
 endforeach()
-set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${devtools_asset_inputs})
-execute_process(COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/embed_assets.py"
-  ${devtools_asset_args} COMMAND_ERROR_IS_FATAL ANY)
+set_property(
+  DIRECTORY
+  APPEND
+  PROPERTY CMAKE_CONFIGURE_DEPENDS ${devtools_asset_inputs})
+execute_process(
+  COMMAND
+    "${Python3_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/scripts/embed_assets.py"
+    ${devtools_asset_args} COMMAND_ERROR_IS_FATAL ANY)

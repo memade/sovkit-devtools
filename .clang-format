@@ -8,13 +8,13 @@ TabWidth: 4
 UseTab: ForIndentation
 ContinuationIndentWidth: 4
 
-# Keep function/class/struct/namespace opening braces on the declaration line.
+# Keep function/class/struct/namespace/control opening braces on the same line.
 BreakBeforeBraces: Custom
 BraceWrapping:
   AfterFunction: false
   AfterClass: false
   AfterStruct: false
-  AfterControlStatement: Always
+  AfterControlStatement: Never
   AfterNamespace: false
   AfterEnum: true
   AfterUnion: true

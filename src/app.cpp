@@ -40,8 +40,7 @@ namespace devtools {
 		void run() {
 			Sdk sdk;
 			uint64_t sequence = 0;
-			for (;;)
-			{
+			for (;;) {
 				Job job;
 				{
 					std::unique_lock lock(mutex_);
@@ -50,30 +49,25 @@ namespace devtools {
 						break;
 					if (jobs_.empty())
 						job.op = "events";
-					else
-					{
+					else {
 						job = std::move(jobs_.front());
 						jobs_.pop_front();
 					}
 				}
 				const auto began = std::chrono::steady_clock::now();
-				if (sdk.loaded())
-				{
+				if (sdk.loaded()) {
 					auto logs = sdk.logs();
 					if (!logs.empty())
 						post({{"operation", "logs"}, {"data", logs}});
 				}
 				Json result;
-				try
-				{
-					if (job.op == "load")
-					{
+				try {
+					if (job.op == "load") {
 						sdk.load(path_from_utf8(job.request.at("path")));
 						result = sdk.execute("info");
 						result["symbols"] = Sdk::symbol_count;
 					}
-					else if (job.op == "start")
-					{
+					else if (job.op == "start") {
 						auto password = std::move(job.request["password"].get_ref<std::string&>());
 						job.request.erase("password");
 						struct Guard {
@@ -84,8 +78,7 @@ namespace devtools {
 						} guard{password};
 						result = sdk.start(path_from_utf8(job.request.value("profile", "")), password, job.request.at("deviceName"));
 					}
-					else if (job.op == "events")
-					{
+					else if (job.op == "events") {
 						if (!sdk.started())
 							continue;
 						auto events = sdk.events();
@@ -96,8 +89,7 @@ namespace devtools {
 					else
 						result = sdk.execute(job.op, job.request);
 				}
-				catch (const std::exception& e)
-				{
+				catch (const std::exception& e) {
 					result = {{"code", -1}, {"message", e.what()}};
 				}
 				result["operation"] = job.op;
@@ -168,8 +160,7 @@ namespace devtools {
 				select("transfer_decide"); request_->SetValueUtf8(data.dump(2)); });
 			bind("clear", [this] { events_->Clear(); history_->Clear(); logs_->Clear(); response_->SetJson(""); diagnostics_.clear(); });
 			bind("export", [this] { export_report(); });
-			for (const auto* page : {"events", "history", "logs"})
-			{
+			for (const auto* page : {"events", "history", "logs"}) {
 				bind(std::string(page) + "Tab", [this, page] { window_.Require<wxui::TabLayout>("records")->SelectItem(page); });
 			}
 			tree_->Bind("itemselect", [this](const wxui::NotifyEvent& event) {
@@ -218,14 +209,12 @@ namespace devtools {
 			std::vector<std::string> names{"selftest"};
 			for (auto x : operations())
 				names.push_back(x.name);
-			for (const auto& op : names)
-			{
+			for (const auto& op : names) {
 				auto r = recipe(op);
 				if (!filter.empty() && op.find(filter) == std::string::npos && r.title.find(filter) == std::string::npos && r.group.find(filter) == std::string::npos)
 					continue;
 				auto& group = groups[r.group];
-				if (!group)
-				{
+				if (!group) {
 					group = std::make_shared<wxui::TreeNode>();
 					group->SetText(r.group);
 					ordered.push_back(group);
@@ -247,8 +236,7 @@ namespace devtools {
 			request_->SetValueUtf8(r.request.dump(2));
 		}
 		bool enqueue(std::string op, Json request = Json::object()) {
-			if (!worker_->submit({std::move(op), std::move(request)}))
-			{
+			if (!worker_->submit({std::move(op), std::move(request)})) {
 				closing_ = false;
 				window_.SetStatus("请求队列已满，请等待当前操作完成");
 				return false;
@@ -260,16 +248,14 @@ namespace devtools {
 			return true;
 		}
 		void execute() {
-			try
-			{
+			try {
 				auto r = recipe(selected_);
 				auto data = Json::parse(request_->GetValueUtf8());
 				if (r.confirm && !window_.Confirm("确认手动操作", "将执行 " + selected_ + "。请核对请求、授权和目标。"))
 					return;
 				enqueue(selected_, data);
 			}
-			catch (...)
-			{
+			catch (...) {
 				window_.Error("请求格式", "JSON 无效，未调用 SDK。");
 			}
 		}
@@ -278,20 +264,17 @@ namespace devtools {
 		}
 		void result(Json row) {
 			const auto op = row.value("operation", "");
-			if (op == "events")
-			{
+			if (op == "events") {
 				append(events_, row.dump(2));
 				return;
 			}
-			if (op == "logs")
-			{
+			if (op == "logs") {
 				append(logs_, row["data"].dump(2));
 				return;
 			}
 			if (pending_)
 				--pending_;
-			if (op == "load" && row.value("code", -1) == 0)
-			{
+			if (op == "load" && row.value("code", -1) == 0) {
 				loaded_ = true;
 				window_.SetStatus("SDK " + row["data"].value("sdkVersion", "unknown"), 1);
 			}
@@ -304,13 +287,11 @@ namespace devtools {
 			if (diagnostics_.size() > 500)
 				diagnostics_.pop_front();
 			window_.SetStatus(op + (row.value("code", -1) == 0 ? " · 完成，请查看业务状态" : " · 失败，请查看响应"));
-			if (!smoke_.empty() && op == "load" && row.value("code", -1) == 0)
-			{
+			if (!smoke_.empty() && op == "load" && row.value("code", -1) == 0) {
 				select("selftest");
 				enqueue("selftest");
 			}
-			else if (!smoke_.empty() && (op == "selftest" || op == "load"))
-			{
+			else if (!smoke_.empty() && (op == "selftest" || op == "load")) {
 				window_.RefreshLayout();
 				Json report = diagnostic(row);
 				const auto size = window_.ClientExtent();
@@ -325,15 +306,12 @@ namespace devtools {
 				output << report.dump(2) << '\n';
 				// The smoke runner closes this window after inspecting the rendered UI.
 			}
-			if (closing_ && op == "stop")
-			{
-				if (row.value("code", -1) == 0)
-				{
+			if (closing_ && op == "stop") {
+				if (row.value("code", -1) == 0) {
 					worker_.reset();
 					window_.FinishClose();
 				}
-				else
-				{
+				else {
 					closing_ = false;
 					execute_->SetEnabled(loaded_ && pending_ == 0);
 					start_->SetEnabled(loaded_ && pending_ == 0);
@@ -370,8 +348,7 @@ namespace devtools {
 	class App : public wxui::Application {
 		bool OnAppInit() override {
 			SetName("SovKit DevTools");
-			try
-			{
+			try {
 				fs::path smoke;
 				const auto args = Arguments();
 				for (size_t i = 1; i + 1 < args.size(); ++i)
@@ -381,8 +358,7 @@ namespace devtools {
 				frame_->show();
 				return true;
 			}
-			catch (const std::exception& e)
-			{
+			catch (const std::exception& e) {
 				wxui::ShowError("SovKit DevTools", e.what());
 				return false;
 			}

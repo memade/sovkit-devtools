@@ -45,8 +45,7 @@ namespace devtools {
 		for (const char* key : {"sequence", "elapsedMs", "code", "abiVersion", "symbols"})
 			if (r.contains(key) && r[key].is_number())
 				result[key] = r[key];
-		if (r.contains("operation") && r["operation"].is_string())
-		{
+		if (r.contains("operation") && r["operation"].is_string()) {
 			const auto op = r["operation"].get<std::string>();
 			if (op == "load" || op == "start" || op == "stop" || op == "events" || op == "selftest" ||
 			    std::any_of(operations().begin(), operations().end(), [&](auto x) { return op == x.name; }))
@@ -158,13 +157,11 @@ namespace devtools {
 			if (fd < 0)
 				throw std::runtime_error("Cannot create profile transaction; retain .pending for inspection");
 			size_t offset = 0;
-			while (offset < size)
-			{
+			while (offset < size) {
 				auto n = ::write(fd, static_cast<const char*>(data) + offset, size - offset);
 				if (n < 0 && errno == EINTR)
 					continue;
-				if (n <= 0)
-				{
+				if (n <= 0) {
 					::close(fd);
 					throw std::runtime_error("Profile write failed");
 				}
@@ -205,8 +202,7 @@ namespace devtools {
 #else
 		library_ = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
 #endif
-		if (!library_)
-		{
+		if (!library_) {
 #ifdef _WIN32
 			const auto detail = "Windows error " + std::to_string(GetLastError()) +
 			                    " (126: missing DLL/dependency; 193: wrong architecture or invalid image)";
@@ -216,8 +212,7 @@ namespace devtools {
 #endif
 			throw std::runtime_error("Cannot load SDK: " + detail);
 		}
-		try
-		{
+		try {
 			sovkit_abi_version = symbol<decltype(sovkit_abi_version)>("sovkit_abi_version");
 			if (sovkit_abi_version() != SOVKIT_ABI_VERSION)
 				throw std::runtime_error("SDK/header ABI mismatch: runtime=" + std::to_string(sovkit_abi_version()) + ", header=" + std::to_string(SOVKIT_ABI_VERSION));
@@ -225,8 +220,7 @@ namespace devtools {
 			if (sovkit_register_log_cb(log, this) != 0)
 				throw std::runtime_error("Cannot register log callback");
 		}
-		catch (...)
-		{
+		catch (...) {
 #ifdef _WIN32
 			FreeLibrary(static_cast<HMODULE>(library_));
 #else
@@ -268,8 +262,7 @@ namespace devtools {
 			throw std::runtime_error("Request exceeds 1 MiB");
 		if (op == "events")
 			return events();
-		if (op == "selftest")
-		{
+		if (op == "selftest") {
 			std::array<uint8_t, 32> test_key{};
 			const uint8_t plain[] = {0, 42, 0, 255};
 			char *encrypted = nullptr, *decoded = nullptr;
@@ -299,8 +292,7 @@ namespace devtools {
 		fs::create_directories(profile);
 #endif
 		profile_ = fs::canonical(profile);
-		if (!fs::exists(profile_ / "devtools-profile.json") && !fs::is_empty(profile_))
-		{
+		if (!fs::exists(profile_ / "devtools-profile.json") && !fs::is_empty(profile_)) {
 			profile_.clear();
 			throw std::runtime_error("Choose an empty directory or an existing DevTools profile; product data is never opened");
 		}
@@ -318,23 +310,20 @@ namespace devtools {
 		lock_ = reinterpret_cast<intptr_t>(handle);
 #else
 		int fd = ::open(file.c_str(), O_RDWR | O_CREAT | O_NOFOLLOW, 0600);
-		if (fd < 0 || flock(fd, LOCK_EX | LOCK_NB) != 0)
-		{
+		if (fd < 0 || flock(fd, LOCK_EX | LOCK_NB) != 0) {
 			if (fd >= 0)
 				::close(fd);
 			throw std::runtime_error("Profile is already open or inaccessible");
 		}
 		lock_ = fd;
 #endif
-		if (!fs::exists(profile_ / "devtools-profile.json"))
-		{
+		if (!fs::exists(profile_ / "devtools-profile.json")) {
 			const std::string marker = "{\"format\":1,\"owner\":\"sovkit-devtools\"}\n";
 			atomic_write(profile_ / "devtools-profile.json", marker.data(), marker.size());
 		}
 	}
 	void Sdk::unlock_profile() {
-		if (lock_ != -1)
-		{
+		if (lock_ != -1) {
 #ifdef _WIN32
 			CloseHandle(reinterpret_cast<HANDLE>(lock_));
 #else
@@ -357,15 +346,14 @@ namespace devtools {
 		size_t size = 0;
 		int code = sovkit_storage_protect(key_.data(), reinterpret_cast<const uint8_t*>(text.data()), text.size(), &out, &size);
 		wipe(text.data(), text.size());
-		if (code != 0)
-		{
+		if (code != 0) {
 			sovkit_free(out);
 			throw std::runtime_error("Cannot encrypt keystore");
 		}
-		try
-		{ atomic_write(profile_ / "keystore.enc", out, size); }
-		catch (...)
-		{
+		try {
+			atomic_write(profile_ / "keystore.enc", out, size);
+		}
+		catch (...) {
 			sovkit_free(out);
 			throw;
 		}
@@ -374,8 +362,7 @@ namespace devtools {
 	int SOVKIT_CALL Sdk::read(void* user, const char* name, uint8_t* out, size_t* size) {
 		if (!user || !name || !size)
 			return -10000;
-		try
-		{
+		try {
 			auto& records = static_cast<Sdk*>(user)->records_;
 			auto it = records.find(name);
 			if (it == records.end())
@@ -390,21 +377,21 @@ namespace devtools {
 				std::memcpy(out, it->second.data(), required);
 			return 0;
 		}
-		catch (...)
-		{ return -10008; }
+		catch (...) {
+			return -10008;
+		}
 	}
 	int SOVKIT_CALL Sdk::write(void* user, const char* name, const uint8_t* data, size_t size) {
 		if (!user || !name || (!data && size))
 			return -10000;
 		auto* self = static_cast<Sdk*>(user);
-		try
-		{
+		try {
 			auto prior = self->records_;
 			self->records_[name] = size ? std::vector<uint8_t>(data, data + size) : std::vector<uint8_t>{};
-			try
-			{ self->persist(); }
-			catch (...)
-			{
+			try {
+				self->persist();
+			}
+			catch (...) {
 				self->records_ = std::move(prior);
 				throw;
 			}
@@ -412,21 +399,21 @@ namespace devtools {
 				wipe(value.data(), value.size());
 			return 0;
 		}
-		catch (...)
-		{ return -10008; }
+		catch (...) {
+			return -10008;
+		}
 	}
 	int SOVKIT_CALL Sdk::remove(void* user, const char* name) {
 		if (!user || !name)
 			return -10000;
 		auto* self = static_cast<Sdk*>(user);
-		try
-		{
+		try {
 			auto prior = self->records_;
 			self->records_.erase(name);
-			try
-			{ self->persist(); }
-			catch (...)
-			{
+			try {
+				self->persist();
+			}
+			catch (...) {
 				self->records_ = std::move(prior);
 				throw;
 			}
@@ -434,8 +421,9 @@ namespace devtools {
 				wipe(value.data(), value.size());
 			return 0;
 		}
-		catch (...)
-		{ return -10008; }
+		catch (...) {
+			return -10008;
+		}
 	}
 	Json Sdk::start(const fs::path& profile, std::string password, const std::string& device) {
 		struct PasswordGuard {
@@ -450,30 +438,26 @@ namespace devtools {
 			throw std::runtime_error("This SDK lacks safe keystore detach. Use the updated 0.1.0 SDK with keystoreDetachVersion=1");
 		if (device.empty() || device.size() > 64)
 			throw std::runtime_error("Device name must be 1..64 UTF-8 bytes");
-		try
-		{
+		try {
 			lock_profile(profile);
-			if (!profile_.empty())
-			{
+			if (!profile_.empty()) {
 				if (password.empty())
 					throw std::runtime_error("A persistent test profile requires a password");
 				const auto envelope = profile_ / "vault.enc";
-				if (fs::exists(envelope))
-				{
+				if (fs::exists(envelope)) {
 					auto data = bytes(envelope);
 					if (sovkit_vault_unlock(reinterpret_cast<const uint8_t*>(password.data()), password.size(), data.data(), data.size(), key_.data()) != 0)
 						throw std::runtime_error("Wrong password or damaged profile; original files retained");
-					if (fs::exists(profile_ / "keystore.enc"))
-					{
+					if (fs::exists(profile_ / "keystore.enc")) {
 						auto encrypted = bytes(profile_ / "keystore.enc");
 						char* plain = nullptr;
 						size_t n = 0;
 						if (sovkit_storage_unprotect(key_.data(), encrypted.data(), encrypted.size(), &plain, &n) != 0)
 							throw std::runtime_error("Damaged encrypted keystore");
-						try
-						{ records_ = Json::parse(plain, plain + n).get<decltype(records_)>(); }
-						catch (...)
-						{
+						try {
+							records_ = Json::parse(plain, plain + n).get<decltype(records_)>();
+						}
+						catch (...) {
 							wipe(plain, n);
 							sovkit_free(plain);
 							throw;
@@ -484,8 +468,7 @@ namespace devtools {
 					else
 						throw std::runtime_error("Missing keystore; incomplete profile retained for inspection");
 				}
-				else
-				{
+				else {
 					if (fs::exists(profile_ / "keystore.enc") || fs::exists(profile_ / "sovkit.db"))
 						throw std::runtime_error("Missing envelope; refusing to replace existing identity");
 					char* data = nullptr;
@@ -493,10 +476,10 @@ namespace devtools {
 					int code = sovkit_vault_create(reinterpret_cast<const uint8_t*>(password.data()), password.size(), &data, &n, key_.data());
 					if (code != 0)
 						throw std::runtime_error("Cannot create password envelope");
-					try
-					{ atomic_write(envelope, data, n); }
-					catch (...)
-					{
+					try {
+						atomic_write(envelope, data, n);
+					}
+					catch (...) {
 						sovkit_free(data);
 						throw;
 					}
@@ -507,8 +490,7 @@ namespace devtools {
 			if (sovkit_register_keystore(read, write, remove, this) != 0)
 				throw std::runtime_error("Cannot register keystore");
 			registered_ = true;
-			if (!profile_.empty())
-			{
+			if (!profile_.empty()) {
 				std::array<uint8_t, 32> database_key{};
 				if (sovkit_store_derive_key(key_.data(), database_key.data()) != 0)
 					throw std::runtime_error("Cannot derive database key");
@@ -520,8 +502,7 @@ namespace devtools {
 				store_open_ = true;
 				const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
 				Json result;
-				do
-				{
+				do {
 					result = execute("store_result_v1", {{"requestId", opened["data"]["requestId"]}});
 					if (result["code"] != -10004)
 						break;
@@ -543,8 +524,7 @@ namespace devtools {
 				throw std::runtime_error("Identity could not be opened: " + identity.dump());
 			return {{"code", 0}, {"data", {{"identity", identity["data"]}, {"persistence", profile.empty() ? "memory-only" : "encrypted-keystore-and-SQLCipher"}, {"discovery", "stopped"}}}};
 		}
-		catch (...)
-		{
+		catch (...) {
 			auto original = std::current_exception();
 			auto result = stop();
 			if (result["code"] != 0)
@@ -563,8 +543,7 @@ namespace devtools {
 		if (code != 0)
 			return {{"code", code}, {"message", "Store close failed; preserve profile and retry Stop"}};
 		store_open_ = false;
-		if (registered_)
-		{
+		if (registered_) {
 			code = sovkit_register_keystore(nullptr, nullptr, nullptr, nullptr);
 			if (code != 0)
 				return {{"code", code}, {"message", "Cannot detach keystore"}};
@@ -577,8 +556,7 @@ namespace devtools {
 		Json rows = Json::array();
 		if (!loaded())
 			return rows;
-		for (int i = 0; i < 64; ++i)
-		{
+		for (int i = 0; i < 64; ++i) {
 			auto result = output([&](char** out, size_t* n) { return sovkit_event_poll(out, n); });
 			if (result["code"] == -10004)
 				break;
@@ -591,22 +569,20 @@ namespace devtools {
 	void SOVKIT_CALL Sdk::log(uint64_t, sovkit_log_level_t, const char* data, size_t size, void* user) {
 		if (!user || !data || size > 32768)
 			return;
-		try
-		{
+		try {
 			auto* self = static_cast<Sdk*>(user);
 			std::lock_guard lock(self->log_mutex_);
 			if (self->logs_.size() >= 256)
 				self->logs_.pop_front();
 			self->logs_.emplace_back(data, size);
 		}
-		catch (...)
-		{} // Never propagate through a C callback.
+		catch (...) {
+		} // Never propagate through a C callback.
 	}
 	Json Sdk::logs() {
 		Json rows = Json::array();
 		std::lock_guard lock(log_mutex_);
-		for (auto& line : logs_)
-		{
+		for (auto& line : logs_) {
 			auto item = Json::parse(line, nullptr, false);
 			if (!item.is_discarded())
 				rows.push_back(std::move(item));
@@ -620,15 +596,13 @@ namespace devtools {
 		// During host teardown retain callback storage until a pending commit succeeds.
 		if (!loaded())
 			return;
-		for (;;)
-		{
-			try
-			{
+		for (;;) {
+			try {
 				if (stop().value("code", -1) == 0)
 					break;
 			}
-			catch (...)
-			{}
+			catch (...) {
+			}
 			std::this_thread::sleep_for(std::chrono::milliseconds(250));
 		}
 		sovkit_register_log_cb(nullptr, nullptr);
