@@ -197,10 +197,10 @@ namespace devtools {
 			library_->SetValueUtf8(utf8(bundled));
 			populate("");
 			select("info");
+			start_->SetEnabled(false);
+			execute_->SetEnabled(false);
 			const bool available = fs::is_regular_file(bundled);
-			window_.SetStatus(available ? "正在加载程序目录中的 SDK…" : "程序目录未找到 SDK 动态库，请选择 SDK");
-			if (available || !smoke_.empty())
-				post([this] { enqueue("load", {{"path", library_->GetValueUtf8()}}); });
+			window_.SetStatus(available ? "SDK 尚未加载，请点击“加载并检查”" : "SDK 尚未加载，请选择动态库后点击“加载并检查”");
 		}
 		void show() {
 			window_.Present();
@@ -295,8 +295,8 @@ namespace devtools {
 				loaded_ = true;
 				window_.SetStatus("SDK " + row["data"].value("sdkVersion", "unknown"), 1);
 			}
-			execute_->SetEnabled(!closing_ && pending_ == 0);
-			start_->SetEnabled(!closing_ && pending_ == 0);
+			execute_->SetEnabled(loaded_ && !closing_ && pending_ == 0);
+			start_->SetEnabled(loaded_ && !closing_ && pending_ == 0);
 			load_->SetEnabled(!loaded_ && !closing_ && pending_ == 0);
 			response_->SetJson(row.dump());
 			append(history_, op + "  code=" + std::to_string(row.value("code", -1)) + "  " + std::to_string(row.value("elapsedMs", 0)) + " ms");
@@ -335,8 +335,8 @@ namespace devtools {
 				else
 				{
 					closing_ = false;
-					execute_->SetEnabled(pending_ == 0);
-					start_->SetEnabled(pending_ == 0);
+					execute_->SetEnabled(loaded_ && pending_ == 0);
+					start_->SetEnabled(loaded_ && pending_ == 0);
 					load_->SetEnabled(!loaded_ && pending_ == 0);
 					window_.Error("保留测试数据", "SDK 尚未安全停止。请保留窗口，检查响应后重试停止。");
 				}

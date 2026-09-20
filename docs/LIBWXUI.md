@@ -32,9 +32,11 @@ cancellation. It requires a desktop session (or Xvfb on Linux); headless core
 checks can use `ctest --test-dir <build> -LE gui --output-on-failure`.
 
 For an end-to-end GUI check, launch `sovkit-devtools --smoke-report <path>`.
-It loads the bundled SDK, runs `selftest`, and records the response round trip,
-UI backend and editor dimensions without exporting request data. Close the
-window normally after checking the report.
+Startup only fills the executable-adjacent SDK path; no library is loaded,
+including in smoke mode. Select the SDK if needed and click "加载并检查".
+After this explicit load, smoke mode runs `selftest` and records the response
+round trip, UI backend and editor dimensions without exporting request data.
+Close the window normally after checking the report.
 
 ## Appearance
 
