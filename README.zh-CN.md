@@ -25,18 +25,18 @@
 
 ## 构建
 
-**SDK 获取**：本源码仓库不包含 SDK 二进制，也不自动下载 SDK。请通过 [SovKit 项目官网](https://skstu.com)了解项目，在 [仓库 issue](https://github.com/memade/sovkit-devtools/issues/new) 中向维护者询问所需平台 SDK 包的获取方式；不要将本仓库源码下载包当作可直接运行的应用。
+**SDK 来源**：默认使用 [`3rdparty/sovkit_sdk/0.1.0`](3rdparty/sovkit_sdk/0.1.0) 中由 SovKit 提供的发行文件，原样读取，不由 DevTools 构建、下载或改写。SDK 行为、接口语义、兼容性及许可均以 SovKit 项目和[随包接入文档](3rdparty/sovkit_sdk/0.1.0/SDK_INTEGRATION.md)为准；工具中的请求模板仅是调试示例。
 
-需要 CMake ≥3.25、Ninja、Python ≥3.8、C++20 工具链、vcpkg。先取得目标平台独立 SDK 包：
+需要 CMake ≥3.25、Ninja、Python ≥3.8、C++20 工具链、vcpkg。当前提供 Windows 动态库；其他平台需另选 SovKit 提供的匹配包。
 
 ```text
-sdk/
-  include/sovkit.h
-  lib/libsovkit.dylib   # Linux: libsovkit.so
-  bin/libsovkit.dll     # Windows；也兼容 lib/libsovkit.dll
-  README.md            # SDK 接入文档
-  LICENSE / NOTICE.md / licenses/  # 分发许可材料
+3rdparty/sovkit_sdk/0.1.0/
+  sovkit.h
+  libsovkit.dll
+  SDK_INTEGRATION.md
 ```
+
+也支持 SovKit 文档中的 `include/`、`lib/`、`bin/` 布局和名为 `README.md` 的接入说明。头文件、库和说明必须来自同一份交付包。
 
 ```sh
 git clone https://github.com/memade/sovkit-devtools.git
@@ -56,17 +56,16 @@ Windows 的 Visual Studio 解决方案构建见下节。Linux：使用 `linux-x6
 
 采用与 OrbitBridge 相同的 CMake Visual Studio 生成器。安装 Visual Studio 2026 的“使用 C++ 的桌面开发”、CMake ≥4.2、Python ≥3.8 和 vcpkg；CMake、Python 需在 PATH 中。此方式不需要 Ninja 或 PowerShell。
 
-**鼠标操作：** 在 Windows“编辑账户的环境变量”中设置 `VCPKG_ROOT`（vcpkg 根目录）与 `SOVKIT_SDK_ROOT`（独立 SDK 根目录），然后重新打开相关程序。双击 [`scripts/build-vs2026.bat`](scripts/build-vs2026.bat)，等待依赖安装、配置完成，脚本会打开 `out/sovkit-devtools.slnx`。选择 **Debug / x64**，执行“生成解决方案”，在 `src/app.cpp` 或 `src/sdk.cpp` 下断点并按 **F5**。若启动项不是 `sovkit-devtools`，右键该项目选择“设为启动项目”。较早版本的 CMake 可能生成 `.sln`，脚本兼容两种格式。
+**鼠标操作：** 在 Windows“编辑账户的环境变量”中设置 `VCPKG_ROOT`（vcpkg 根目录，SDK 默认使用仓库内的交付包），然后重新打开相关程序。双击 [`scripts/build-vs2026.bat`](scripts/build-vs2026.bat)，等待依赖安装、配置完成，脚本会打开 `out/sovkit-devtools.slnx`。选择 **Debug / x64**，执行“生成解决方案”，在 `src/app.cpp` 或 `src/sdk.cpp` 下断点并按 **F5**。若启动项不是 `sovkit-devtools`，右键该项目选择“设为启动项目”。较早版本的 CMake 可能生成 `.sln`，脚本兼容两种格式。
 
-未设置环境变量时，双击脚本会尝试 `%USERPROFILE%/vcpkg` 和仓库下 `.sdk/windows-x64-current`。它只生成并打开解决方案，不删除已有构建。若需手动打开，直接双击 `out/sovkit-devtools.slnx`。
+未设置 `VCPKG_ROOT` 时，双击脚本会尝试 `%USERPROFILE%/vcpkg`。它只生成并打开解决方案，不删除已有构建。若需手动打开，直接双击 `out/sovkit-devtools.slnx`。
 
-直接运行 CMake 时也会自动使用仓库下 `.sdk/windows-x64-current`（未指定 SDK 时）。SDK 路径会保存在构建缓存中，后续配置无需重复设置；更换 SDK 可传入 `-DSOVKIT_SDK_ROOT=C:/other/sdk`。若环境变量或缓存误指向本仓库根目录，会自动定位到其中的 `.sdk/windows-x64-current` 包并修正缓存。其他显式指定的无效路径仍会报错。
+CMake 默认使用 `3rdparty/sovkit_sdk/0.1.0`，并迁移旧的内置 `.sdk/windows-x64-current` 缓存路径。如需其他 SovKit 交付包，传入 `-DSOVKIT_SDK_ROOT=C:/other/sdk` 或 `scripts/build.py --sdk /path/sdk`。同名环境变量不再覆盖默认选择；显式选择会保存在构建缓存中。
 
-也可在仓库根目录使用普通 **CMD**，按 OrbitBridge 的预设命令构建（将示例路径换成实际路径；使用上述本地 SDK 时可省略 `set SOVKIT_SDK_ROOT`）：
+也可在仓库根目录使用普通 **CMD**，按 OrbitBridge 的预设命令构建（将 vcpkg 示例路径换成实际路径）：
 
 ```bat
 set "VCPKG_ROOT=C:\path\to\vcpkg"
-set "SOVKIT_SDK_ROOT=C:\SDK"
 cmake --preset windows-debug
 cmake --build --preset windows-debug
 ctest --preset windows-debug
@@ -82,13 +81,28 @@ cmake --build --preset windows-debug --target sovkit-devtools
 cmake --build --preset windows-debug --target sovkit-console
 ```
 
-Debug/Release 共用 `out/` 解决方案，程序分别输出到 `out/Debug/` 和 `out/Release/`。GUI 构建会复制选定 SDK 的 DLL 和存在的匹配 PDB；切换工具配置不会自动更换 SDK 构建类型。调试 DLL 内部需要匹配的 SDK PDB 和源码。修改 SDK 后，退出工具并更新独立 SDK 包，再重新构建。
+Debug/Release 共用 `out/` 解决方案，程序分别输出到 `out/Debug/` 和 `out/Release/`。GUI 构建只原样复制选定 SDK 的 DLL，以及 SovKit 随包提供的匹配 PDB（如有）。Debug/Release 只控制 DevTools；SDK 升级由 SovKit 交付新的完整包，退出工具后更换包并重新构建。
 
 原有 `windows-x64-debug` / `windows-x64-release` 仍为 Ninja 预设，使用 `scripts/build.py`，输出到 `.build/<preset>/`。新的 `windows-debug` / `windows-release` 请使用上述 CMake 命令或 Visual Studio，不经过 `build.py`。
 
+## 发布文件与资源
+
+Windows GUI 发布包仅含 `sovkit-devtools.exe` 和 `libsovkit.dll`。字体使用系统现有字体：
+Windows 使用微软雅黑，macOS/Linux 使用各自系统默认字体；不携带字体目录。
+XML、图片等 `res/` 资源、SDK 接入原文和许可说明由 `scripts/embed_assets.py` 编译进 EXE。
+界面可打开“接入文档”和“关于与许可”，不依赖外部 XML、文档或资源目录。
+
+```bat
+cmake --build --preset windows-release
+cpack --config out/CPackConfig.cmake -C Release -B .build/packages
+```
+
+`out/Release` 是开发构建目录，可能含 PDB、测试程序或旧资源；对外分发使用生成的 ZIP。
+控制台保留为构建和测试目标，GUI 发布包不包含它。
+
 ## 第一次手测
 
-1. 两台电脑各自加载其平台 SDK；输入不同设备名。临时模式留空测试目录；要复现重启恢复则各选一个空目录并设置密码。
+1. Windows 启动时自动读取 exe 所在目录的 `libsovkit.dll` 并查询版本和能力，不依赖工作目录；缺失时可手动选择。自动加载不启动身份或网络操作。两台电脑输入不同设备名。临时模式留空测试目录；要复现重启恢复则各选一个空目录并设置密码。
 2. 点击“启动身份”，执行 `discovery_start`、`discovery_list`。从候选复制 `address` 与 `pairingPort` 到一端的 `pairing_start`。
 3. 两端执行 `pairing_status`，当面核对 `safetyCode`（SAS），分别执行 `pairing_confirm`。确认关系出现在 `relationship_list`。
 4. 把关系 ID 填进 `message_send`；接收端查看事件和 `message_list`。文件使用“选择发送文件”，接收端 `transfer_list` → `transfer_decide` 选择接收目录并接受。
@@ -115,9 +129,8 @@ python scripts/build.py windows-x64-debug --sdk C:/SDK --test
 & ./.build/windows-x64-debug/sovkit-devtools.exe
 ```
 
-不需要 SovKit 源码或 `.lib`。SDK 目录必须包含 include/sovkit.h、README.md（接入文档），
-以及 bin/libsovkit.dll 或 lib/libsovkit.dll；两处同时存在时以 lib/ 为准。
-工具构建会把库复制到 exe 同目录，启动后点击“加载并检查”→ selftest → “启动身份”。
+不需要 SovKit 源码或 `.lib`。默认包包含 sovkit.h、libsovkit.dll 和 SDK_INTEGRATION.md。
+工具构建会将交付库原样复制到 exe 同目录，启动时自动加载；随后可执行 selftest 或手动“启动身份”。
 要换新 SDK，可以选择新的绝对 DLL 路径并重启工具；停止身份不等于卸载 DLL。
 不要在程序运行中直接覆盖正在加载的 DLL。
 
@@ -125,9 +138,7 @@ python scripts/build.py windows-x64-debug --sdk C:/SDK --test
 `info` 是运行时能力依据；SDK ABI 相同不表示功能版本相同。
 默认是临时身份，复现断开重启问题要使用独立持久目录和密码；不要选择 Nearvia 目录。
 
-`session_resume` 默认模板为前台恢复；按指定地址重连已有关系时，改为
-`{"relationshipId":"…","address":"…","pairingPort":49152}`，不要把两种模式字段混合。
-`store_result_v1` 请求接受整数或十进制字符串 ID；成功结果取出后不能重复拉同一 ID。
+SDK 请求字段、状态码和异步行为请直接查看[随包接入文档](3rdparty/sovkit_sdk/0.1.0/SDK_INTEGRATION.md)。
 
 `ctest` 的双进程测试是本机回环，不代替 macOS ↔ Windows 真机互通或系统蓝牙验收。
 蓝牙页目前只有 SDK 完整帧接口，未实现 Windows/macOS GATT 驱动。

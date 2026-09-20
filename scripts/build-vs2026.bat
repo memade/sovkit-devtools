@@ -4,16 +4,10 @@ cd /d "%~dp0.."
 
 rem Use configured paths; otherwise try conventional local locations.
 if not defined VCPKG_ROOT if exist "%USERPROFILE%\vcpkg\scripts\buildsystems\vcpkg.cmake" set "VCPKG_ROOT=%USERPROFILE%\vcpkg"
-if not defined SOVKIT_SDK_ROOT if exist "%CD%\.sdk\windows-x64-current\include\sovkit.h" set "SOVKIT_SDK_ROOT=%CD%\.sdk\windows-x64-current"
 if not exist "%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake" (
   echo Set the VCPKG_ROOT user environment variable to your vcpkg directory.
   goto :failed
 )
-if not exist "%SOVKIT_SDK_ROOT%\include\sovkit.h" (
-  echo Set the SOVKIT_SDK_ROOT user environment variable to your standalone SDK directory.
-  goto :failed
-)
-
 cmake --preset windows-debug
 if errorlevel 1 goto :failed
 set "SOVKIT_SOLUTION=%CD%\out\sovkit-devtools.sln"

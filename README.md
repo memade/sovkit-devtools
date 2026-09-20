@@ -44,18 +44,18 @@ Tests cover pairing confirmation, message delivery, exact file bytes, encrypted 
 
 ### 1. Obtain a matching SDK package
 
-**This source repository does not bundle or automatically download SDK binaries.** Visit the [SovKit website](https://skstu.com) for the project, or [ask the maintainer in an issue](https://github.com/memade/sovkit-devtools/issues/new) about SDK package availability for your OS and architecture. A GitHub source archive is not a ready-to-run application.
+The default SDK is the SovKit-supplied package in [`3rdparty/sovkit_sdk/0.1.0`](3rdparty/sovkit_sdk/0.1.0). It currently contains the Windows DLL, public header and [SDK integration guide](3rdparty/sovkit_sdk/0.1.0/SDK_INTEGRATION.md). DevTools consumes these files unchanged; SovKit defines SDK behavior, compatibility and licensing. UI request templates are examples, not a separate SDK specification. DevTools neither builds nor downloads the SDK. Obtain matching packages for other platforms from SovKit.
 
 Use a 0.1.0 SDK with ABI 25 and `sovkit_info().keystoreDetachVersion >= 1`. A library without this capability can be inspected, but test identities will not start.
 
 ```text
-sdk/
-  include/sovkit.h
-  lib/libsovkit.dylib   # Linux: libsovkit.so
-  bin/libsovkit.dll     # Windows; lib/ also accepted
-  README.md            # SDK integration guide
-  LICENSE / NOTICE.md / licenses/ / third_party/  # as supplied by the SDK
+3rdparty/sovkit_sdk/0.1.0/
+  sovkit.h
+  libsovkit.dll         # Supplied Windows library
+  SDK_INTEGRATION.md    # SovKit's authoritative integration guide
 ```
+
+An explicitly selected SovKit package may also use the documented `include/`, `lib/` or `bin/` layout with its integration guide named `README.md`. Headers, runtime and documentation must come from the same supplied package.
 
 ### 2. Build
 
@@ -70,13 +70,12 @@ python3 scripts/build.py macos-arm64-debug --sdk /absolute/path/sdk --test
 
 Open `.build/macos-arm64-debug/sovkit-devtools.app` on macOS. Use `macos-arm64-release --test --package` for a local Release ZIP.
 
-On Windows, use **Visual Studio 2026** with Desktop development with C++, CMake 4.2+, Python 3.8+, and vcpkg. CMake and Python must be on PATH. Set the `VCPKG_ROOT` and `SOVKIT_SDK_ROOT` user environment variables in Windows, then reopen applications. Double-click [`scripts/build-vs2026.bat`](scripts/build-vs2026.bat) to generate and open `out/sovkit-devtools.slnx`. Select **Debug / x64**, build the solution, set breakpoints, and press **F5**. If needed, right-click `sovkit-devtools` and select **Set as Startup Project**. Older CMake versions may generate `.sln` instead; the script recognizes both formats. This workflow does not require Ninja or PowerShell.
+On Windows, use **Visual Studio 2026** with Desktop development with C++, CMake 4.2+, Python 3.8+, and vcpkg. CMake and Python must be on PATH. Set the `VCPKG_ROOT` user environment variable in Windows, then reopen applications. The supplied SDK is selected by default. Double-click [`scripts/build-vs2026.bat`](scripts/build-vs2026.bat) to generate and open `out/sovkit-devtools.slnx`. Select **Debug / x64**, build the solution, set breakpoints, and press **F5**. If needed, right-click `sovkit-devtools` and select **Set as Startup Project**. Older CMake versions may generate `.sln` instead; the script recognizes both formats. This workflow does not require Ninja or PowerShell.
 
-The script falls back to `%USERPROFILE%/vcpkg` and `.sdk/windows-x64-current` when the corresponding variables are unset. It preserves existing build directories. Alternatively, use ordinary **CMD** from the repository root, following the same preset workflow as OrbitBridge:
+The script falls back to `%USERPROFILE%/vcpkg` when `VCPKG_ROOT` is unset. It preserves existing build directories. Alternatively, use ordinary **CMD** from the repository root, following the same preset workflow as OrbitBridge:
 
 ```bat
 set "VCPKG_ROOT=C:\path\to\vcpkg"
-set "SOVKIT_SDK_ROOT=C:\SDK"
 cmake --preset windows-debug
 cmake --build --preset windows-debug
 ctest --preset windows-debug
@@ -85,9 +84,9 @@ cmake --preset windows-release
 cmake --build --preset windows-release
 ```
 
-Direct CMake configuration also defaults to `.sdk/windows-x64-current` on Windows when no SDK is selected. The selected SDK path is retained in the build cache; use `-DSOVKIT_SDK_ROOT=C:/other/sdk` to switch packages. If the environment variable or cache points to this checkout itself, CMake resolves its `.sdk/windows-x64-current` package and corrects the cache. Other explicitly selected invalid paths still fail.
+CMake defaults to `3rdparty/sovkit_sdk/0.1.0` and migrates the former built-in `.sdk/windows-x64-current` cache path. To select a different SovKit-supplied package, configure with `-DSOVKIT_SDK_ROOT=C:/other/sdk` or use `scripts/build.py --sdk /path/sdk`. The environment variable of the same name no longer overrides this default. The build cache retains an explicit selection.
 
-Build individual targets with `cmake --build --preset windows-debug --target sovkit-devtools` or `--target sovkit-console`. Both configurations share the `out/` solution; executables go to `out/Debug/` or `out/Release/`. GUI builds copy the selected SDK DLL and matching PDB when present. Selecting Release does not rebuild or switch the SDK; provide the intended SDK package. Stop the application before replacing its SDK.
+Build individual targets with `cmake --build --preset windows-debug --target sovkit-devtools` or `--target sovkit-console`. Both configurations share the `out/` solution; executables go to `out/Debug/` or `out/Release/`. GUI builds copy the selected SDK DLL unchanged, plus a matching PDB only if SovKit supplied one. Debug/Release changes only the DevTools build; the supplied SDK remains unchanged. Stop the application before replacing its SDK.
 
 The existing `windows-x64-debug` / `windows-x64-release` Ninja presets still use `scripts/build.py` from an x64 developer shell. Use CMake directly or Visual Studio for the new `windows-debug` / `windows-release` presets, not `build.py`.
 
@@ -97,9 +96,25 @@ Ninja build outputs go under `.build/<preset>/`; Visual Studio outputs go under 
 
 For existing dependency installations, configure with `-DSOVKIT_SDK_ROOT=/path/sdk` and `-DCMAKE_PREFIX_PATH=/path/dependencies`. Set `-DDEVTOOLS_BUILD_GUI=OFF` to build only the console and integration tests. Local packages are not a signed or notarized public release.
 
+### Windows distribution
+
+The GUI ZIP contains only `sovkit-devtools.exe` and `libsovkit.dll`. XML, images,
+SDK documentation and license notices are embedded by `scripts/embed_assets.py`;
+SDK documentation and About/licenses can be opened inside the application.
+Windows uses installed Microsoft YaHei; macOS/Linux use native system fonts.
+No font or resource directory is required. The console remains a build/test target.
+
+```bat
+cmake --build --preset windows-release
+cpack --config out/CPackConfig.cmake -C Release -B .build/packages
+```
+
+Distribute the ZIP, not the development output directory, which may contain PDBs,
+test executables or old build artifacts.
+
 ### 3. Run a two-device experiment
 
-1. On each computer, load its platform SDK and choose a different device name. Leave the profile directory empty for a temporary identity, or choose a separate empty directory and password for persistence.
+1. On Windows, startup automatically loads `libsovkit.dll` beside the executable and queries its capabilities, independently of the working directory. If absent, use the SDK picker. Loading does not start an identity or network operation. On each computer, choose a different device name. Leave the profile directory empty for a temporary identity, or choose a separate empty directory and password for persistence.
 2. Start the identity, then run `discovery_start` and `discovery_list`.
 3. Copy a candidate's `address` and `pairingPort` into `pairing_start`. Inspect `pairing_status` on both sides, compare `safetyCode`, and run `pairing_confirm` on both peers.
 4. Use the resulting relationship ID in `message_send`. Inspect events on the receiver. For files, select a source file and explicitly accept the transfer into a chosen destination directory on the receiver.

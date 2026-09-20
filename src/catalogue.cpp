@@ -38,6 +38,7 @@ Recipe recipe(const std::string &op) {
   if (op == "log_configure_v1") { r.request = {{"version", 1}, {"directory", ""}, {"role", "helper"}, {"console", false}, {"minimumLevel", "info"}}; r.help = "先填写独立日志目录的绝对路径。日志是脱敏明文，不是密码库内容；role 使用 helper。"; }
   if (op == "log_read_v1") r.request = {{"afterSeq", "0"}, {"maxCount", 100}};
   if (op == "identity_export" || op == "identity_import" || op.find("remove") != std::string::npos || op.find("revoke") != std::string::npos || op.find("forget") != std::string::npos || r.group == "网络实验 · 手动") r.confirm = true;
+  r.help += "\n请求模板为 DevTools 调试示例；SDK 接口语义以 SovKit 随包接入文档为准。";
   return r;
 }
 }

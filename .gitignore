@@ -19,8 +19,11 @@
 
 # Compiled Dynamic libraries
 *.so
+!3rdparty/sovkit_sdk/*/libsovkit.so
 *.dylib
+!3rdparty/sovkit_sdk/*/libsovkit.dylib
 *.dll
+!3rdparty/sovkit_sdk/*/libsovkit.dll
 *.so.*
 
 
