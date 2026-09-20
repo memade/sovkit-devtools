@@ -23,13 +23,13 @@ SDK 语义版本、ABI、运行时能力与 Nearvia 客户端构建号是不同�
 4. “加密业务库与运行日志 v1” → 持久身份、加密数据库、重启恢复。
 5. “常见问题定位”与“手工调试请求” → 完善错误处理与功能调用。
 
-C++ 句柄真实类型为 `ISovSDK`，兼容别名 `ISovKit` 指向同一类型：
+C++ 句柄真实类型为 `ISovKit`（原名 `ISovSDK`）；使用旧类名的宿主需更新源码并重新编译：
 
 ```cpp
 #include "sovkit.h"
 
 sovkit_handle_t handle = nullptr;
-if (ISovSDK::InitCpp(&handle) == 0) {
+if (ISovKit::InitCpp(&handle) == 0) {
   auto* sdk = static_cast<ISovKit*>(handle); // borrowed; never delete
   char* data = nullptr;
   size_t length = 0;
@@ -383,7 +383,7 @@ BLE 不支持文件、多跳 Mesh 或转为 IP 的隐式回退。
 
 `Init` 执行 SDK 初始化；`InitCpp` 只取得借用句柄，不启动 SDK。其余输入/输出与同名 C 能力一致。
 
-| C ABI | ISovSDK / ISovKit 方法 |
+| C ABI | ISovKit 方法 |
 | --- | --- |
 | `sovkit_register_result_cb` | `RegisterResultCallback` |
 | `sovkit_event_poll` | `EventPoll` |
