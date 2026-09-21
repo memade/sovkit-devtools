@@ -112,6 +112,7 @@ void RichEdit::CreateNativeCtrl() {
 
 void RichEdit::SyncStyle() {
     if (!textCtrl_) return;
+    textCtrl_->SetToolTip(Utf8ToWxString(tooltip_));
     if (manager_) {
         auto font = manager_->GetUIFont();
         if (monospace_) font = CodeFont();

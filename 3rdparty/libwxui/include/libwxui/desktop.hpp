@@ -39,6 +39,13 @@ public:
     }
     void Present();
     void SetStatus(const std::string& text, int field = 0);
+    void SetTitle(const std::string& text);
+    void LoadLanguageXml(const std::string& language, const std::string& xml);
+    void LoadLanguageResource(const std::string& language, const std::string& resource);
+    void SetLanguage(const std::string& language);
+    void SetFallbackLanguage(const std::string& language);
+    const std::string& GetLanguage() const;
+    std::string Translate(const std::string& key, const std::string& fallback = {}) const;
     Extent ClientExtent() const;
     void RefreshLayout();
     UiPost Poster() const;

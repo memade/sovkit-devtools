@@ -7,9 +7,15 @@
 namespace devtools {
 	class Frame {
 	public:
-		explicit Frame(fs::path smoke = {})
+		explicit Frame(fs::path smoke = {}, const std::string& language = "zh-CN")
 		    : window_({"SovKit DevTools · 独立 SDK 调试工作台", {1260, 860}, {980, 700}, 2}, assets::Get("workbench.xml"), assets::Load),
 		      smoke_(std::move(smoke)) {
+			// 语言包与 XML 一起嵌入 EXE，不依赖工作目录或外置翻译文件。
+			window_.LoadLanguageResource("zh-CN", "languages/zh-CN.xml");
+			window_.LoadLanguageResource("en", "languages/en.xml");
+			window_.SetFallbackLanguage("zh-CN");
+			window_.SetLanguage(language);
+			window_.SetTitle(Tr("SovKit DevTools · 独立 SDK 调试工作台"));
 			library_ = window_.Require<wxui::Edit>("library");
 			device_ = window_.Require<wxui::Edit>("device");
 			profile_ = window_.Require<wxui::Edit>("profile");
@@ -26,7 +32,7 @@ namespace devtools {
 			start_ = window_.Require<wxui::Button>("start");
 			execute_ = window_.Require<wxui::Button>("execute");
 			device_->SetValueUtf8("DevTools-" + wxui::HostName());
-			response_->SetJson("响应（本机可见；不会自动写入文件）");
+			response_->SetJson(Tr("响应（本机可见；不会自动写入文件）"));
 			BindActions(); // 注册界面动作；每个 SDK 入口都有独立处理函数。
 			auto post = window_.Poster();
 			// SDK 后台结果先投递到 UI 线程，再更新响应和日志控件。
@@ -46,16 +52,45 @@ namespace devtools {
 			start_->SetEnabled(false);
 			execute_->SetEnabled(false);
 			const bool available = fs::is_regular_file(bundled);
-			window_.SetStatus(available ? "SDK 尚未加载，请点击“加载并检查”" : "SDK 尚未加载，请选择动态库后点击“加载并检查”");
+			SetStatusText(available ? "SDK 尚未加载，请点击“加载并检查”" : "SDK 尚未加载，请选择动态库后点击“加载并检查”");
 		}
 		void show() {
 			window_.Present();
 		}
 
 	private:
+		std::string Tr(const std::string& text) const {
+			return window_.Translate(text, text);
+		}
+		Recipe GetRecipe(const std::string& operation) const {
+			Recipe translated = recipe(operation);
+			translated.group = Tr(translated.group);
+			translated.title = Tr(translated.title);
+			// 只翻译说明文字；请求模板和 SDK 返回的数据保持原样。
+			const auto newline = translated.help.find('\n');
+			translated.help = Tr(translated.help.substr(0, newline)) +
+			                  (newline == std::string::npos ? "" : "\n" + Tr(translated.help.substr(newline + 1)));
+			return translated;
+		}
+		void SetStatusText(const std::string& text, const std::string& prefix = {}) {
+			statusText_ = text;
+			statusPrefix_ = prefix;
+			window_.SetStatus(prefix + Tr(text));
+		}
+		void OnSwitchLanguage() {
+			window_.SetLanguage(window_.GetLanguage().starts_with("en") ? "zh-CN" : "en");
+			window_.SetTitle(Tr("SovKit DevTools · 独立 SDK 调试工作台"));
+			const Recipe current = GetRecipe(selected_);
+			title_->SetText(current.title + "  /  " + selected_);
+			help_->SetValueUtf8(current.help);
+			window_.SetStatus(statusPrefix_ + Tr(statusText_));
+			if (!hasResponse_)
+				response_->SetJson(Tr("响应（本机可见；不会自动写入文件）"));
+			// 不调用 select()：它会重置用户编辑的请求。控件和 SDK 会话均继续使用。
+		}
 		void OnChooseSdk() {
 			// 调试时选择与 PDB 同次构建、同目录的 DLL；此步骤不会加载它。
-			const auto path = window_.OpenFile("选择与本机架构匹配的 libsovkit",
+			const auto path = window_.OpenFile(Tr("选择与本机架构匹配的 libsovkit"),
 			                                   "Dynamic library (*.dylib;*.so;*.dll)|*.dylib;*.so;*.dll|All files|*");
 			if (path) {
 				library_->SetValueUtf8(*path);
@@ -75,17 +110,17 @@ namespace devtools {
 			password_->Clear(); // 提交后立即清空界面中的口令。
 		}
 		void OnChooseProfile() {
-			const auto path = window_.ChooseDirectory("选择空目录或已有 DevTools 目录（不使用 Nearvia 数据）");
+			const auto path = window_.ChooseDirectory(Tr("选择空目录或已有 DevTools 目录（不使用 Nearvia 数据）"));
 			if (path) {
 				profile_->SetValueUtf8(*path);
 			}
 		}
 		void OnChooseSendFile() {
-			const auto path = window_.OpenFile("选择测试发送文件");
+			const auto path = window_.OpenFile(Tr("选择测试发送文件"));
 			if (!path) {
 				return;
 			}
-			Json data = recipe("transfer_offer").request;
+			Json data = GetRecipe("transfer_offer").request;
 			try {
 				// 保留用户已填的关系 ID，选择文件本身不发起传输。
 				const Json current = Json::parse(request_->GetValueUtf8());
@@ -102,11 +137,11 @@ namespace devtools {
 			request_->SetValueUtf8(data.dump(2));
 		}
 		void OnChooseReceiveDirectory() {
-			const auto path = window_.ChooseDirectory("明确授权保存接收文件的目录");
+			const auto path = window_.ChooseDirectory(Tr("明确授权保存接收文件的目录"));
 			if (!path) {
 				return;
 			}
-			Json data = recipe("transfer_decide").request;
+			Json data = GetRecipe("transfer_decide").request;
 			try {
 				// 保留待接收的传输 ID，实际接收仍由执行按钮触发。
 				const Json current = Json::parse(request_->GetValueUtf8());
@@ -125,6 +160,7 @@ namespace devtools {
 			events_->Clear();
 			history_->Clear();
 			logs_->Clear();
+			hasResponse_ = true;
 			response_->SetJson("");
 			diagnostics_.clear();
 		}
@@ -142,22 +178,23 @@ namespace devtools {
 			if (!closing_) {
 				closing_ = true;
 				if (enqueue("stop")) {
-					window_.SetStatus("正在停止 SDK、提交数据…");
+					SetStatusText("正在停止 SDK、提交数据…");
 				}
 			}
 			return false; // 正常关闭等待 result 收到 stop 成功后调用 FinishClose。
 		}
 		void BindActions() {
 			// 这里只绑定事件；需要调试的动作放在对应的具名处理函数中。
+			bind("language", [this] { OnSwitchLanguage(); });
 			bind("browseSdk", [this] { OnChooseSdk(); });
 			bind("load", [this] { OnLoadSdk(); });
-			bind("docs", [this] { window_.ShowText("SovKit SDK 接入文档（随包原文）", assets::Get("SDK_INTEGRATION.md")); });
-			bind("notices", [this] { window_.ShowText("关于与许可", assets::Notices()); });
+			bind("docs", [this] { window_.ShowText(Tr("SovKit SDK 接入文档（随包原文）"), assets::Get("SDK_INTEGRATION.md")); });
+			bind("notices", [this] { window_.ShowText(Tr("关于与许可"), assets::Notices()); });
 			bind("browseProfile", [this] { OnChooseProfile(); });
 			bind("start", [this] { OnStartIdentity(); });
 			bind("stop", [this] { enqueue("stop"); });
 			bind("execute", [this] { execute(); });
-			bind("reset", [this] { request_->SetValueUtf8(recipe(selected_).request.dump(2)); });
+			bind("reset", [this] { request_->SetValueUtf8(GetRecipe(selected_).request.dump(2)); });
 			bind("sendFile", [this] { OnChooseSendFile(); });
 			bind("receiveDirectory", [this] { OnChooseReceiveDirectory(); });
 			bind("clear", [this] { OnClearRecords(); });
@@ -182,17 +219,17 @@ namespace devtools {
 			for (auto x : operations())
 				names.push_back(x.name);
 			for (const auto& op : names) {
-				auto r = recipe(op);
+				auto r = GetRecipe(op);
 				if (!filter.empty() && op.find(filter) == std::string::npos && r.title.find(filter) == std::string::npos && r.group.find(filter) == std::string::npos)
 					continue;
 				auto& group = groups[r.group];
 				if (!group) {
 					group = std::make_shared<wxui::TreeNode>();
-					group->SetText(r.group);
+					group->BindTranslation("text", recipe(op).group, recipe(op).group);
 					ordered.push_back(group);
 				}
 				auto node = std::make_shared<wxui::TreeNode>();
-				node->SetText(r.title);
+				node->BindTranslation("text", recipe(op).title, recipe(op).title);
 				node->SetAttribute("userdata", op);
 				group->AddTreeChild(node);
 			}
@@ -202,7 +239,7 @@ namespace devtools {
 		}
 		void select(const std::string& op) {
 			selected_ = op;
-			auto r = recipe(op);
+			auto r = GetRecipe(op);
 			title_->SetText(r.title + "  /  " + op);
 			help_->SetValueUtf8(r.help);
 			request_->SetValueUtf8(r.request.dump(2));
@@ -210,7 +247,7 @@ namespace devtools {
 		bool enqueue(std::string op, Json request = Json::object()) {
 			if (!worker_->submit({std::move(op), std::move(request)})) {
 				closing_ = false;
-				window_.SetStatus("请求队列已满，请等待当前操作完成");
+				SetStatusText("请求队列已满，请等待当前操作完成");
 				return false;
 			}
 			execute_->SetEnabled(false);
@@ -221,15 +258,15 @@ namespace devtools {
 		}
 		void execute() {
 			try {
-				auto r = recipe(selected_);
+				auto r = GetRecipe(selected_);
 				auto data = Json::parse(request_->GetValueUtf8());
 				// 用户确认后只提交任务，SDK 调用在 Worker 线程中执行。
-				if (r.confirm && !window_.Confirm("确认手动操作", "将执行 " + selected_ + "。请核对请求、授权和目标。"))
+				if (r.confirm && !window_.Confirm(Tr("确认手动操作"), Tr("将执行 ") + selected_ + Tr("。请核对请求、授权和目标。")))
 					return;
 				enqueue(selected_, data);
 			}
 			catch (...) {
-				window_.Error("请求格式", "JSON 无效，未调用 SDK。");
+				window_.Error(Tr("请求格式"), Tr("JSON 无效，未调用 SDK。"));
 			}
 		}
 		void append(wxui::RichEdit* view, const std::string& text) {
@@ -255,12 +292,13 @@ namespace devtools {
 			execute_->SetEnabled(loaded_ && !closing_ && pending_ == 0);
 			start_->SetEnabled(loaded_ && !closing_ && pending_ == 0);
 			load_->SetEnabled(!loaded_ && !closing_ && pending_ == 0);
+			hasResponse_ = true;
 			response_->SetJson(row.dump());
 			append(history_, op + "  code=" + std::to_string(row.value("code", -1)) + "  " + std::to_string(row.value("elapsedMs", 0)) + " ms");
 			diagnostics_.push_back(diagnostic(row));
 			if (diagnostics_.size() > 500)
 				diagnostics_.pop_front();
-			window_.SetStatus(op + (row.value("code", -1) == 0 ? " · 完成，请查看业务状态" : " · 失败，请查看响应"));
+			SetStatusText(row.value("code", -1) == 0 ? " · 完成，请查看业务状态" : " · 失败，请查看响应", op);
 			if (!smoke_.empty() && op == "load" && row.value("code", -1) == 0) {
 				select("selftest");
 				enqueue("selftest");
@@ -290,19 +328,19 @@ namespace devtools {
 					execute_->SetEnabled(loaded_ && pending_ == 0);
 					start_->SetEnabled(loaded_ && pending_ == 0);
 					load_->SetEnabled(!loaded_ && pending_ == 0);
-					window_.Error("保留测试数据", "SDK 尚未安全停止。请保留窗口，检查响应后重试停止。");
+					window_.Error(Tr("保留测试数据"), Tr("SDK 尚未安全停止。请保留窗口，检查响应后重试停止。"));
 				}
 			}
 		}
 		void export_report() {
-			auto path = window_.SaveFile("导出操作名、状态码、耗时；不含请求、消息、身份、路径或密码", "sovkit-diagnostics.json", "JSON|*.json");
+			auto path = window_.SaveFile(Tr("导出操作名、状态码、耗时；不含请求、消息、身份、路径或密码"), "sovkit-diagnostics.json", "JSON|*.json");
 			if (!path)
 				return;
 			std::ofstream out(path_from_utf8(*path), std::ios::binary);
 			Json report{{"format", 1}, {"toolVersion", "0.1.0"}, {"records", diagnostics_}};
 			out << report.dump(2) << '\n';
 			out.close();
-			window_.SetStatus(out ? "诊断元数据已导出" : "导出失败");
+			SetStatusText(out ? "诊断元数据已导出" : "导出失败");
 		}
 		// 成员逆序析构：先停止 worker_，再释放窗口及其回调派发器。
 		wxui::DesktopWindow window_;
@@ -313,7 +351,8 @@ namespace devtools {
 		wxui::TreeView* tree_;
 		wxui::Button *load_, *start_, *execute_;
 		std::string selected_;
-		bool closing_ = false, loaded_ = false;
+		bool closing_ = false, loaded_ = false, hasResponse_ = false;
+		std::string statusText_, statusPrefix_;
 		size_t pending_ = 0;
 		std::deque<Json> diagnostics_;
 		fs::path smoke_;
@@ -324,11 +363,15 @@ namespace devtools {
 			SetName("SovKit DevTools");
 			try {
 				fs::path smoke;
+				std::string language = "zh-CN";
 				const auto args = Arguments();
-				for (size_t i = 1; i + 1 < args.size(); ++i)
+				for (size_t i = 1; i + 1 < args.size(); ++i) {
 					if (args[i] == "--smoke-report")
 						smoke = path_from_utf8(args[++i]);
-				frame_ = std::make_unique<Frame>(smoke);
+					else if (args[i] == "--language")
+						language = args[++i];
+				}
+				frame_ = std::make_unique<Frame>(smoke, language);
 				frame_->show();
 				return true;
 			}

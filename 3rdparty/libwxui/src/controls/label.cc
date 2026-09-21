@@ -879,6 +879,7 @@ void Edit::SetEnabled(bool e) {
 
 void Edit::SyncNativeCtrl() {
     if (!textCtrl_) return;
+    textCtrl_->SetToolTip(Utf8ToWxString(tooltip_));
     textCtrl_->SetHint(Utf8ToWxString(hint_));
     if (manager_) textCtrl_->SetFont(manager_->GetUIFont());
     // Keep the native control enabled even for logical-disabled edits.

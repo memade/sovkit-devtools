@@ -9,6 +9,7 @@
 ///   mgr->FindControl("ok")->Bind("click", [](auto&){ /* … */ });
 
 #include "window.hpp"
+#include "localization.hpp"
 
 #include <wx/panel.h>
 #include <wx/bitmap.h>
@@ -52,6 +53,16 @@ public:
     [[nodiscard]] const Window* GetRoot()   const { return root_.get(); }
 
     Control* FindControl(const std::string& name);
+
+    void LoadLanguageXml(const std::string& language, const std::string& xml);
+    void SetLanguage(const std::string& language);
+    void SetFallbackLanguage(const std::string& language);
+    const Localization& GetLocalization() const { return localization_; }
+    std::string Translate(const std::string& key, const std::string& fallback = {}) const {
+        return localization_.Translate(key, fallback);
+    }
+    void RefreshTranslations();
+    void UpdateTooltip();
 
     [[nodiscard]] wxSize GetPreferredSize(
         const wxSize& fallback = wxDefaultSize) const;
@@ -117,6 +128,7 @@ private:
     ResourceLoader                             resourceLoader_;
     std::unordered_map<std::string, wxBitmap>  imageCache_;
     wxFont                                     uiFont_;
+    Localization                               localization_;
 
     Control* hovered_  = nullptr;
     Control* pressed_  = nullptr;

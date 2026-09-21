@@ -12,6 +12,7 @@
 ///   5. mgr->FindControl("name")->Bind(…)   — attach event callbacks
 
 #include "libwxui/types.hpp"
+#include "libwxui/localization.hpp"
 #include "libwxui/image_spec.hpp"
 #include "libwxui/event.hpp"
 #include "libwxui/control.hpp"

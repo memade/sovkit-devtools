@@ -25,11 +25,20 @@ static std::shared_ptr<Control> BuildControlFromNode(wxXmlNode* node,
     }
 
     // Apply XML attributes
+    std::map<std::string, std::string> attributes;
     wxXmlAttribute* attr = node->GetAttributes();
     while (attr) {
-        ctrl->SetAttribute(NormalizeXmlIdentifier(WxStringToUtf8(attr->GetName())),
-                           WxStringToUtf8(attr->GetValue()));
+        const auto name = NormalizeXmlIdentifier(WxStringToUtf8(attr->GetName()));
+        const auto value = WxStringToUtf8(attr->GetValue());
+        attributes[name] = value;
+        if (name != "textid" && name != "hintid" && name != "tooltipid")
+            ctrl->SetAttribute(name, value);
         attr = attr->GetNext();
+    }
+    // 第二遍绑定语言键；text/textid 的 XML 属性顺序不会影响原文回退。
+    for (const std::string name : {"text", "hint", "tooltip"}) {
+        const auto key = attributes.find(name + "id");
+        if (key != attributes.end()) ctrl->BindTranslation(name, key->second, attributes[name]);
     }
 
     // Propagate manager pointer after SetAttribute so native-backed controls

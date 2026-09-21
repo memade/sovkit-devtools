@@ -246,6 +246,7 @@ void UIManager::OnMouseMove(wxMouseEvent& evt) {
         if (hovered_) hovered_->OnMouseLeave();
         hovered_ = hit;
         if (hovered_) hovered_->OnMouseEnter(pt);
+        UpdateTooltip();
     } else if (hovered_ && hovered_ != pressed_) {
         hovered_->OnMouseMove(pt);
     }
@@ -256,6 +257,7 @@ void UIManager::OnMouseMove(wxMouseEvent& evt) {
 
 void UIManager::OnMouseLeave(wxMouseEvent& evt) {
     if (hovered_) { hovered_->OnMouseLeave(); hovered_ = nullptr; }
+    UpdateTooltip();
     evt.Skip();
 }
 
@@ -352,6 +354,7 @@ void UIManager::ForgetControlTree(Control* ctrl) {
 
     if (ControlTreeContains(ctrl, hovered_)) {
         hovered_ = nullptr;
+        UpdateTooltip();
     }
     if (ControlTreeContains(ctrl, focused_)) {
         List* owningList = OwningList(ctrl);

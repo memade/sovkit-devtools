@@ -1,5 +1,7 @@
 # SovKit DevTools
 
+界面支持简体中文 / English 即时切换，语言资源嵌入程序。libwxui 接入方式见 [多语言说明](docs/LOCALIZATION.md)。
+
 [English](README.md) | 简体中文 · [SovKit 官网](https://skstu.com) · [问题反馈](https://github.com/memade/sovkit-devtools/issues)
 
 **用可见的请求、响应和事件，探索和调试 SovKit 的设备间通信。** 这是 SovKit 的开源开发者工作台，面向 SDK 接入者、通信问题排查者和愿意参与跨平台验证的贡献者。

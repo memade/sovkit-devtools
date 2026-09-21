@@ -97,6 +97,30 @@ namespace wxui {
 		const auto size = impl_->frame->GetClientSize();
 		return {size.x, size.y};
 	}
+	void DesktopWindow::SetTitle(const std::string& text) {
+		if (impl_->frame) impl_->frame->SetTitle(Utf8ToWxString(text));
+	}
+	void DesktopWindow::LoadLanguageXml(const std::string& language, const std::string& xml) {
+		impl_->manager->LoadLanguageXml(language, xml);
+	}
+	void DesktopWindow::LoadLanguageResource(const std::string& language, const std::string& resource) {
+		std::string xml;
+		if (!impl_->manager->LoadResourceBytes(resource, &xml))
+			throw std::runtime_error("Missing language resource: " + resource);
+		LoadLanguageXml(language, xml);
+	}
+	void DesktopWindow::SetLanguage(const std::string& language) {
+		impl_->manager->SetLanguage(language);
+	}
+	void DesktopWindow::SetFallbackLanguage(const std::string& language) {
+		impl_->manager->SetFallbackLanguage(language);
+	}
+	const std::string& DesktopWindow::GetLanguage() const {
+		return impl_->manager->GetLocalization().GetLanguage();
+	}
+	std::string DesktopWindow::Translate(const std::string& key, const std::string& fallback) const {
+		return impl_->manager->Translate(key, fallback);
+	}
 	void DesktopWindow::RefreshLayout() {
 		if (impl_->frame && !impl_->closing)
 			impl_->manager->ForceLayout();

@@ -69,7 +69,7 @@ bool StrokeRoundedRect(wxDC& dc, const wxRect& rect, const wxColour& color,
 // ── SetAttribute ─────────────────────────────────────────────────────────
 void Control::SetAttribute(const std::string& key, const std::string& val) {
     if (key == "name")            { name_      = val;                       return; }
-    if (key == "tooltip")         { tooltip_   = val;                       return; }
+    if (key == "tooltip")         { tooltip_ = val; if (manager_) manager_->UpdateTooltip(); return; }
     if (key == "userdata" || key == "userData") { userData_ = val;          return; }
     if (key == "text")            { SetText(val);                             return; }
     if (key == "shortcut")        { shortcut_  = val.empty() ? '\0' : val[0]; return; }

@@ -15,11 +15,13 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <map>
 
 namespace wxui {
 
 class Container;
 class UIManager;
+class Localization;
 
 // ── Control ──────────────────────────────────────────────────────────────
 class Control {
@@ -62,6 +64,12 @@ public:
     virtual void SetText(const char* t);
     virtual void SetText(const wxString& t);
 
+    // 仅绑定显示文案；输入框通常绑定 hint，避免切换语言覆盖用户输入。
+    void BindTranslation(const std::string& attribute, const std::string& key,
+                         const std::string& fallback = {});
+    void UnbindTranslation(const std::string& attribute);
+    void ApplyTranslations(const Localization& language);
+
     // ── Attributes (generic set / get) ───────────────────────────────────
     /// Apply a single XML attribute by name/value string.
     virtual void        SetAttribute(const std::string& key,
@@ -73,7 +81,7 @@ public:
     const Container* GetParent()       const  { return parent_; }
     UIManager*       GetManager()             { return manager_; }
     const UIManager* GetManager()      const  { return manager_; }
-    virtual void     SetManager(UIManager* m) { manager_ = m; OnManagerSet(); }
+    virtual void     SetManager(UIManager* m);
 
     /// Find a named control in this subtree (returns self if name matches).
     virtual Control* FindControl(const std::string& name);
@@ -160,6 +168,8 @@ protected:
     Container*  parent_          = nullptr;
     UIManager*  manager_         = nullptr;
     EventSink   events_;
+    struct TranslationBinding { std::string key, fallback; };
+    std::map<std::string, TranslationBinding> translations_;
 };
 
 } // namespace wxui

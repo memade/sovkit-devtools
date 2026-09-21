@@ -95,6 +95,7 @@ void JsonViewer::SetAttribute(const std::string& key, const std::string& val) {
         return;
     }
     Container::SetAttribute(key, val);
+    if (key == "tooltip") SyncStyle();
 }
 
 void JsonViewer::OnManagerSet() {
@@ -119,6 +120,7 @@ void JsonViewer::CreateNativeCtrls() {
 void JsonViewer::SyncStyle() {
     for (TextEditor* ctrl : {wrappedCtrl_, nowrapCtrl_}) {
         if (!ctrl) continue;
+        ctrl->SetToolTip(Utf8ToWxString(tooltip_));
         ctrl->SetFont(ResolveJsonFont(manager_));
         ctrl->SetOwnForegroundColour(ResolveJsonTextColor(manager_, textColor_));
         if (bkColor_.IsOk() && bkColor_.Alpha() != 0) {
