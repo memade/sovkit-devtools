@@ -21,6 +21,10 @@ devtools_embed_file("LICENSE" "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 devtools_embed_file("NOTICE.md" "${CMAKE_CURRENT_SOURCE_DIR}/NOTICE.md")
 devtools_embed_file("licenses/tools/libwxui/LICENSE"
                     "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/libwxui/LICENSE")
+if(WIN32)
+  devtools_embed_file("licenses/tools/dlfcn-win32/COPYING"
+                      "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/dlfcn-win32/COPYING")
+endif()
 foreach(notice LICENSE NOTICE.md)
   if(EXISTS "${SOVKIT_SDK_ROOT}/${notice}")
     devtools_embed_file("licenses/sdk/${notice}" "${SOVKIT_SDK_ROOT}/${notice}")

@@ -1,111 +1,10 @@
 #include "catalogue.hpp"
+#include "worker.hpp"
 #include <libwxui.hpp>
-#include <condition_variable>
-#include <deque>
 #include <fstream>
-#include <mutex>
-#include <thread>
 #include "assets.hpp"
 
 namespace devtools {
-	struct Job {
-		std::string op;
-		Json request;
-	};
-	class Worker {
-	public:
-		explicit Worker(std::function<void(Json)> deliver) : deliver_(std::move(deliver)), thread_([this] { run(); }) {
-		}
-		~Worker() {
-			{
-				std::lock_guard lock(mutex_);
-				quit_ = true;
-			}
-			cv_.notify_one();
-			thread_.join();
-		}
-		bool submit(Job job) {
-			std::lock_guard lock(mutex_);
-			if (jobs_.size() >= 16 || quit_)
-				return false;
-			jobs_.push_back(std::move(job));
-			cv_.notify_one();
-			return true;
-		}
-
-	private:
-		void post(Json record) {
-			deliver_(std::move(record));
-		}
-		void run() {
-			Sdk sdk;
-			uint64_t sequence = 0;
-			for (;;) {
-				Job job;
-				{
-					std::unique_lock lock(mutex_);
-					cv_.wait_for(lock, std::chrono::milliseconds(250), [&] { return quit_ || !jobs_.empty(); });
-					if (quit_ && jobs_.empty())
-						break;
-					if (jobs_.empty())
-						job.op = "events";
-					else {
-						job = std::move(jobs_.front());
-						jobs_.pop_front();
-					}
-				}
-				const auto began = std::chrono::steady_clock::now();
-				if (sdk.loaded()) {
-					auto logs = sdk.logs();
-					if (!logs.empty())
-						post({{"operation", "logs"}, {"data", logs}});
-				}
-				Json result;
-				try {
-					if (job.op == "load") {
-						sdk.load(path_from_utf8(job.request.at("path")));
-						result = sdk.execute("info");
-						result["symbols"] = Sdk::symbol_count;
-					}
-					else if (job.op == "start") {
-						auto password = std::move(job.request["password"].get_ref<std::string&>());
-						job.request.erase("password");
-						struct Guard {
-							std::string& s;
-							~Guard() {
-								wipe(s.data(), s.size());
-							}
-						} guard{password};
-						result = sdk.start(path_from_utf8(job.request.value("profile", "")), password, job.request.at("deviceName"));
-					}
-					else if (job.op == "events") {
-						if (!sdk.started())
-							continue;
-						auto events = sdk.events();
-						if (events.empty())
-							continue;
-						result = {{"code", 0}, {"data", events}};
-					}
-					else
-						result = sdk.execute(job.op, job.request);
-				}
-				catch (const std::exception& e) {
-					result = {{"code", -1}, {"message", e.what()}};
-				}
-				result["operation"] = job.op;
-				result["sequence"] = ++sequence;
-				result["elapsedMs"] = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - began).count();
-				post(std::move(result));
-			}
-		}
-		std::function<void(Json)> deliver_;
-		std::mutex mutex_;
-		std::condition_variable cv_;
-		std::deque<Job> jobs_;
-		bool quit_ = false;
-		std::thread thread_;
-	};
-
 	class Frame {
 	public:
 		explicit Frame(fs::path smoke = {})
@@ -128,55 +27,11 @@ namespace devtools {
 			execute_ = window_.Require<wxui::Button>("execute");
 			device_->SetValueUtf8("DevTools-" + wxui::HostName());
 			response_->SetJson("响应（本机可见；不会自动写入文件）");
-			bind("browseSdk", [this] {
-				if (auto path = window_.OpenFile("选择与本机架构匹配的 libsovkit",
-					"Dynamic library (*.dylib;*.so;*.dll)|*.dylib;*.so;*.dll|All files|*")) library_->SetValueUtf8(*path); });
-			bind("load", [this] { enqueue("load", {{"path", library_->GetValueUtf8()}}); });
-			bind("docs", [this] { window_.ShowText("SovKit SDK 接入文档（随包原文）", assets::Get("SDK_INTEGRATION.md")); });
-			bind("notices", [this] { window_.ShowText("关于与许可", assets::Notices()); });
-			bind("browseProfile", [this] {
-				if (auto path = window_.ChooseDirectory("选择空目录或已有 DevTools 目录（不使用 Nearvia 数据）")) profile_->SetValueUtf8(*path); });
-			bind("start", [this] {
-				enqueue("start", { {"deviceName", device_->GetValueUtf8()}, {"profile", profile_->GetValueUtf8()}, {"password", password_->GetValueUtf8()} });
-				password_->Clear(); });
-			bind("stop", [this] { enqueue("stop"); });
-			bind("execute", [this] { execute(); });
-			bind("reset", [this] { request_->SetValueUtf8(recipe(selected_).request.dump(2)); });
-			bind("sendFile", [this] {
-				auto path = window_.OpenFile("选择测试发送文件");
-				if (!path) return;
-				auto data = recipe("transfer_offer").request;
-				try { auto current = Json::parse(request_->GetValueUtf8()); if (current.contains("relationshipId")) data["relationshipId"] = current["relationshipId"]; }
-				catch (...) {}
-				data["sourcePaths"] = { *path }; data["logicalNames"] = { utf8(path_from_utf8(*path).filename()) };
-				select("transfer_offer"); request_->SetValueUtf8(data.dump(2)); });
-			bind("receiveDirectory", [this] {
-				auto path = window_.ChooseDirectory("明确授权保存接收文件的目录");
-				if (!path) return;
-				auto data = recipe("transfer_decide").request;
-				try { auto current = Json::parse(request_->GetValueUtf8()); if (current.contains("transferId")) data["transferId"] = current["transferId"]; }
-				catch (...) {}
-				data["destinationDirectory"] = *path;
-				select("transfer_decide"); request_->SetValueUtf8(data.dump(2)); });
-			bind("clear", [this] { events_->Clear(); history_->Clear(); logs_->Clear(); response_->SetJson(""); diagnostics_.clear(); });
-			bind("export", [this] { export_report(); });
-			for (const auto* page : {"events", "history", "logs"}) {
-				bind(std::string(page) + "Tab", [this, page] { window_.Require<wxui::TabLayout>("records")->SelectItem(page); });
-			}
-			tree_->Bind("itemselect", [this](const wxui::NotifyEvent& event) {
-				auto* node = tree_->GetVisibleNode(event.param1);
-				if (node && !node->GetUserData().empty()) select(node->GetUserData()); });
-			auto* search = window_.Require<wxui::Edit>("search");
-			search->Bind("valuechanged", [this, search](const wxui::NotifyEvent&) { populate(search->GetValueUtf8()); });
-			window_.OnClose([this](bool canDefer) {
-				if (!canDefer) { worker_.reset(); return true; }
-				if (!closing_) {
-					closing_ = true;
-					if (enqueue("stop")) window_.SetStatus("正在停止 SDK、提交数据…");
-				}
-				return false; });
+			BindActions(); // 注册界面动作；每个 SDK 入口都有独立处理函数。
 			auto post = window_.Poster();
+			// SDK 后台结果先投递到 UI 线程，再更新响应和日志控件。
 			worker_ = std::make_unique<Worker>([this, post](Json row) { post([this, row = std::move(row)]() mutable { result(std::move(row)); }); });
+			// 仅预填可执行文件旁的 SDK 路径，构造窗口时不加载动态库。
 			const auto exe = path_from_utf8(wxui::ExecutablePath());
 #ifdef _WIN32
 			auto bundled = exe.parent_path() / "libsovkit.dll";
@@ -198,6 +53,123 @@ namespace devtools {
 		}
 
 	private:
+		void OnChooseSdk() {
+			// 调试时选择与 PDB 同次构建、同目录的 DLL；此步骤不会加载它。
+			const auto path = window_.OpenFile("选择与本机架构匹配的 libsovkit",
+			                                   "Dynamic library (*.dylib;*.so;*.dll)|*.dylib;*.so;*.dll|All files|*");
+			if (path) {
+				library_->SetValueUtf8(*path);
+			}
+		}
+		void OnLoadSdk() {
+			// 断点入口 1：确认路径；下一站是 Worker::ProcessJob，再进入 Sdk::load。
+			const std::string path = library_->GetValueUtf8();
+			enqueue("load", {{"path", path}});
+		}
+		void OnStartIdentity() {
+			// 加载与启动分开：只有本按钮会创建或打开独立测试身份。
+			Json request{{"deviceName", device_->GetValueUtf8()},
+			             {"profile", profile_->GetValueUtf8()},
+			             {"password", password_->GetValueUtf8()}};
+			enqueue("start", std::move(request));
+			password_->Clear(); // 提交后立即清空界面中的口令。
+		}
+		void OnChooseProfile() {
+			const auto path = window_.ChooseDirectory("选择空目录或已有 DevTools 目录（不使用 Nearvia 数据）");
+			if (path) {
+				profile_->SetValueUtf8(*path);
+			}
+		}
+		void OnChooseSendFile() {
+			const auto path = window_.OpenFile("选择测试发送文件");
+			if (!path) {
+				return;
+			}
+			Json data = recipe("transfer_offer").request;
+			try {
+				// 保留用户已填的关系 ID，选择文件本身不发起传输。
+				const Json current = Json::parse(request_->GetValueUtf8());
+				if (current.contains("relationshipId")) {
+					data["relationshipId"] = current["relationshipId"];
+				}
+			}
+			catch (const Json::exception&) {
+				// 原请求尚未写完时，从默认模板重新填写。
+			}
+			data["sourcePaths"] = {*path};
+			data["logicalNames"] = {utf8(path_from_utf8(*path).filename())};
+			select("transfer_offer");
+			request_->SetValueUtf8(data.dump(2));
+		}
+		void OnChooseReceiveDirectory() {
+			const auto path = window_.ChooseDirectory("明确授权保存接收文件的目录");
+			if (!path) {
+				return;
+			}
+			Json data = recipe("transfer_decide").request;
+			try {
+				// 保留待接收的传输 ID，实际接收仍由执行按钮触发。
+				const Json current = Json::parse(request_->GetValueUtf8());
+				if (current.contains("transferId")) {
+					data["transferId"] = current["transferId"];
+				}
+			}
+			catch (const Json::exception&) {
+				// 原请求不是完整 JSON 时，使用默认模板。
+			}
+			data["destinationDirectory"] = *path;
+			select("transfer_decide");
+			request_->SetValueUtf8(data.dump(2));
+		}
+		void OnClearRecords() {
+			events_->Clear();
+			history_->Clear();
+			logs_->Clear();
+			response_->SetJson("");
+			diagnostics_.clear();
+		}
+		void OnSelectApi(const wxui::NotifyEvent& event) {
+			auto* node = tree_->GetVisibleNode(event.param1);
+			if (node && !node->GetUserData().empty()) {
+				select(node->GetUserData()); // 叶节点保存 API 名称，分类节点不执行操作。
+			}
+		}
+		bool OnClose(bool canDefer) {
+			if (!canDefer) {
+				worker_.reset(); // 必须等 SDK 停止和后台线程退出，才能销毁窗口。
+				return true;
+			}
+			if (!closing_) {
+				closing_ = true;
+				if (enqueue("stop")) {
+					window_.SetStatus("正在停止 SDK、提交数据…");
+				}
+			}
+			return false; // 正常关闭等待 result 收到 stop 成功后调用 FinishClose。
+		}
+		void BindActions() {
+			// 这里只绑定事件；需要调试的动作放在对应的具名处理函数中。
+			bind("browseSdk", [this] { OnChooseSdk(); });
+			bind("load", [this] { OnLoadSdk(); });
+			bind("docs", [this] { window_.ShowText("SovKit SDK 接入文档（随包原文）", assets::Get("SDK_INTEGRATION.md")); });
+			bind("notices", [this] { window_.ShowText("关于与许可", assets::Notices()); });
+			bind("browseProfile", [this] { OnChooseProfile(); });
+			bind("start", [this] { OnStartIdentity(); });
+			bind("stop", [this] { enqueue("stop"); });
+			bind("execute", [this] { execute(); });
+			bind("reset", [this] { request_->SetValueUtf8(recipe(selected_).request.dump(2)); });
+			bind("sendFile", [this] { OnChooseSendFile(); });
+			bind("receiveDirectory", [this] { OnChooseReceiveDirectory(); });
+			bind("clear", [this] { OnClearRecords(); });
+			bind("export", [this] { export_report(); });
+			for (const auto* page : {"events", "history", "logs"}) {
+				bind(std::string(page) + "Tab", [this, page] { window_.Require<wxui::TabLayout>("records")->SelectItem(page); });
+			}
+			tree_->Bind("itemselect", [this](const wxui::NotifyEvent& event) { OnSelectApi(event); });
+			auto* search = window_.Require<wxui::Edit>("search");
+			search->Bind("valuechanged", [this, search](const wxui::NotifyEvent&) { populate(search->GetValueUtf8()); });
+			window_.OnClose([this](bool canDefer) { return OnClose(canDefer); });
+		}
 		template <class F>
 		void bind(const std::string& name, F callback) {
 			window_.Require<wxui::Control>(name)->Bind("click", [callback](const wxui::NotifyEvent&) { callback(); });
@@ -251,6 +223,7 @@ namespace devtools {
 			try {
 				auto r = recipe(selected_);
 				auto data = Json::parse(request_->GetValueUtf8());
+				// 用户确认后只提交任务，SDK 调用在 Worker 线程中执行。
 				if (r.confirm && !window_.Confirm("确认手动操作", "将执行 " + selected_ + "。请核对请求、授权和目标。"))
 					return;
 				enqueue(selected_, data);
@@ -274,6 +247,7 @@ namespace devtools {
 			}
 			if (pending_)
 				--pending_;
+			// 只有加载和能力检查成功后，才开放身份与业务操作。
 			if (op == "load" && row.value("code", -1) == 0) {
 				loaded_ = true;
 				window_.SetStatus("SDK " + row["data"].value("sdkVersion", "unknown"), 1);
@@ -304,7 +278,7 @@ namespace devtools {
 				report["responseWidth"] = response_->GetWidth();
 				std::ofstream output(smoke_, std::ios::binary);
 				output << report.dump(2) << '\n';
-				// The smoke runner closes this window after inspecting the rendered UI.
+				// 冒烟检查读取报告并检查界面后，再关闭测试窗口。
 			}
 			if (closing_ && op == "stop") {
 				if (row.value("code", -1) == 0) {
@@ -330,7 +304,7 @@ namespace devtools {
 			out.close();
 			window_.SetStatus(out ? "诊断元数据已导出" : "导出失败");
 		}
-		// Destroy/join the worker before the window and its callback dispatcher.
+		// 成员逆序析构：先停止 worker_，再释放窗口及其回调派发器。
 		wxui::DesktopWindow window_;
 		wxui::Edit *library_, *device_, *profile_, *password_;
 		wxui::RichEdit *request_, *help_, *events_, *history_, *logs_;

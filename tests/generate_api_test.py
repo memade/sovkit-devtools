@@ -49,6 +49,7 @@ class GenerationTest(unittest.TestCase):
                                  '  {"network_paths_update", "command"},\n'
                                  '  {"discovery_stop", "void"},\n')
                 self.assertEqual(output['api_count.inc'], '77')
+                self.assertEqual(set(output), {'api_names.inc', 'api_exports.inc', 'api_count.inc'})
                 if baseline is None:
                     baseline = output
                 self.assertEqual(output, baseline)
@@ -60,6 +61,22 @@ class GenerationTest(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn('sovkit_new_operation', result.stderr)
             self.assertFalse((root / 'generated').exists())
+
+    def test_missing_checked_in_route_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self.assertEqual(self.generate(root, ('*', '**')).returncode, 0)
+            router = root / 'operations.cpp'
+            names = ['stop', 'events', 'selftest', 'info', 'message_send',
+                     'network_paths_update', 'discovery_stop']
+            router.write_text('\n'.join(f'if (operation == "{name}") {{}}' for name in names), encoding='utf-8')
+            command = [sys.executable, str(GENERATOR), str(root / 'sovkit.h'),
+                       str(root / 'checked'), '--dispatch', str(router)]
+            self.assertEqual(subprocess.run(command, capture_output=True).returncode, 0)
+            router.write_text(router.read_text(encoding='utf-8').replace('message_send', 'typo'), encoding='utf-8')
+            result = subprocess.run(command, capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('message_send', result.stderr)
 
 
 if __name__ == '__main__':

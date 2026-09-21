@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 include(cmake/MacOSSdk.cmake)
-project(sovkit-devtools VERSION 0.1.0 LANGUAGES CXX)
+project(sovkit-devtools VERSION 0.1.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -17,14 +17,21 @@ option(DEVTOOLS_BUNDLE_SDK "Copy the supplied SDK runtime beside the application
 set(generated "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${generated}")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-  "${SOVKIT_SDK_HEADER}" scripts/generate_api.py scripts/embed_assets.py res/banner.xml res/workbench.xml "${SOVKIT_SDK_DOCUMENTATION}")
+  "${SOVKIT_SDK_HEADER}" scripts/generate_api.py src/sdk/operations.cpp scripts/embed_assets.py res/banner.xml res/workbench.xml "${SOVKIT_SDK_DOCUMENTATION}")
 execute_process(COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/generate_api.py"
-  "${SOVKIT_SDK_HEADER}" "${generated}" COMMAND_ERROR_IS_FATAL ANY)
-add_library(devtools_core STATIC src/sdk.cpp src/catalogue.cpp)
+  "${SOVKIT_SDK_HEADER}" "${generated}" --dispatch "${CMAKE_CURRENT_SOURCE_DIR}/src/sdk/operations.cpp"
+  COMMAND_ERROR_IS_FATAL ANY)
+add_library(devtools_core STATIC
+  src/sdk.cpp src/catalogue.cpp
+  src/sdk/library.cpp src/sdk/library.hpp src/sdk/buffer.hpp
+  src/sdk/lifecycle.cpp src/sdk/profile.cpp src/sdk/logs.cpp src/sdk/utilities.cpp
+  src/sdk/operations.cpp src/sdk/operations_identity.cpp src/sdk/operations_network.cpp
+  src/sdk/operations_messages.cpp src/sdk/operations_storage.cpp)
 target_include_directories(devtools_core PUBLIC src "${generated}" "${SOVKIT_SDK_INCLUDE_DIR}")
 target_link_libraries(devtools_core PUBLIC nlohmann_json::nlohmann_json Threads::Threads ${CMAKE_DL_LIBS})
 if(WIN32)
-  target_link_libraries(devtools_core PUBLIC advapi32)
+  add_subdirectory(3rdparty/dlfcn-win32)
+  target_link_libraries(devtools_core PUBLIC dlfcn-win32 advapi32)
 endif()
 if(MSVC)
   target_compile_options(devtools_core PUBLIC /utf-8 /W4 /permissive-)
@@ -56,7 +63,7 @@ if(DEVTOOLS_BUILD_GUI)
   find_path(DEVTOOLS_UTFCPP_INCLUDE utf8.h PATH_SUFFIXES utf8cpp utfcpp REQUIRED)
   add_subdirectory(3rdparty/libwxui)
   include(cmake/EmbeddedAssets.cmake)
-  add_executable(sovkit-devtools WIN32 MACOSX_BUNDLE src/app.cpp)
+  add_executable(sovkit-devtools WIN32 MACOSX_BUNDLE src/app.cpp src/worker.cpp src/worker.hpp)
   target_link_libraries(sovkit-devtools PRIVATE devtools_core libwxui)
   set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT sovkit-devtools)
   set_property(TARGET sovkit-devtools PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:sovkit-devtools>")

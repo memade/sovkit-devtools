@@ -30,7 +30,7 @@ source_group(docs FILES "${SOVKIT_SDK_DOCUMENTATION}")
 
 target_sources(devtools_core PRIVATE src/sdk.hpp src/catalogue.hpp)
 set(devtools_api_generated)
-foreach(api_part count dispatch load members names)
+foreach(api_part count exports names)
   list(APPEND devtools_api_generated "${generated}/api_${api_part}.inc")
 endforeach()
 set_source_files_properties(${devtools_api_generated} PROPERTIES HEADER_FILE_ONLY TRUE)
@@ -62,7 +62,7 @@ else()
   target_sources(sovkit-console PRIVATE ${devtools_ide_auxiliary})
 endif()
 
-file(GLOB devtools_ide_sources CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/src/*.cpp" "${PROJECT_SOURCE_DIR}/src/*.hpp")
+file(GLOB_RECURSE devtools_ide_sources CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/src/*.cpp" "${PROJECT_SOURCE_DIR}/src/*.hpp")
 source_group(TREE "${PROJECT_SOURCE_DIR}" FILES ${devtools_ide_sources} ${devtools_ide_tree_files})
 source_group(build FILES "${PROJECT_SOURCE_DIR}/CMakeLists.txt"
   "${PROJECT_SOURCE_DIR}/CMakePresets.json" "${PROJECT_SOURCE_DIR}/.clang-format"

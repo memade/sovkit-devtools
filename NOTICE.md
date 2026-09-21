@@ -2,6 +2,8 @@
 
 SovKit DevTools source follows the root MIT LICENSE.
 
+Windows statically includes dlfcn-win32 (MIT, Copyright 2007 Ramiro Polla), copied from the project owner's OrbitBridge SDK demo. Its license is retained in `3rdparty/dlfcn-win32/COPYING` and embedded in the application. The local UTF-8 path adaptation is documented in that directory's README. macOS/Linux use system dlfcn.
+
 `3rdparty/libwxui` was supplied by the project owner from OrbitBridge. It is covered by the upstream MIT license (Copyright 2026 memade), included at `3rdparty/libwxui/LICENSE`. Existing source attribution is retained. This repository supplies a standalone build target and omits unused generated installation/pkg-config files from the snapshot.
 
 The tool uses wxWidgets (wxWindows Library Licence), fmt (MIT), RapidJSON (MIT and its bundled notices), utfcpp (Boost Software License), and nlohmann/json (MIT). Their exact source and copyright notices are provided by the pinned vcpkg recipes; installed dependency copyright files are embedded into the application and accessible through About and licenses.

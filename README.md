@@ -12,7 +12,7 @@ SovKit DevTools is an open-source desktop workbench for developers integrating t
 
 Communication bugs are easier to investigate when both ends are visible. This workbench gives SDK integrators a place to inspect return codes, follow events, compare pairing safety codes, and reproduce failures independently of a product application.
 
-DevTools consumes just **`libsovkit` + `sovkit.h` + the SDK integration guide**. It does not require SovKit implementation sources, Flutter, or OrbitBridge sources. It uses the public C ABI through `dlopen` / `LoadLibraryExW`; Windows does not require an SDK import `.lib`.
+DevTools consumes just **`libsovkit` + `sovkit.h` + the SDK integration guide**. It does not require SovKit implementation sources, Flutter, or OrbitBridge sources. It uses `dlopen` / `dlsym` (static dlfcn-win32 on Windows) to obtain the public `ISovKit*` handle and resolve the remaining C helpers. The C++ interface requires a compiler/ABI compatible with the SDK; Windows does not require an SDK import `.lib`. See the [source layout and breakpoint guide](docs/ARCHITECTURE.md).
 
 [SovKit](https://skstu.com) provides the underlying communication SDK. DevTools provides the public integration example and a place to contribute reproducible feedback.
 
@@ -112,6 +112,7 @@ The generated Visual Studio solution separates applications, static libraries, t
 ```text
 3rdparty/
   libwxui
+  dlfcn-win32                # Windows static loader adapter
   sovkit-sdk                 # Browse the supplied header and integration guide
 projects/
   sovkit-devtools             # Default startup project

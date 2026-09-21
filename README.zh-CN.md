@@ -8,7 +8,7 @@
 
 独立的跨平台原生 SDK 开发者工作台。参考 OrbitBridge/brostu 的 C++、wxWidgets、libwxui 和 CMake/vcpkg 组织方式；运行和构建不需要 OrbitBridge、SovranKit 源码或 Flutter。
 
-对 SovKit 的唯一接入材料是 **`libsovkit` 动态库、`sovkit.h` 与接入文档**。工具自身的开源 UI/JSON 依赖通过 vcpkg 获取。运行时验证 ABI 和全部 C 导出，用 `LoadLibraryExW` / `dlopen` 加载；不链接 SDK 私有静态库，Windows 不要求 SDK `.lib`。
+对 SovKit 的唯一接入材料是 **`libsovkit` 动态库、`sovkit.h` 与接入文档**。工具自身的开源 UI/JSON 依赖通过 vcpkg 获取。运行时验证 ABI 和全部 C 导出，统一用 `dlopen` / `dlsym` 加载（Windows 静态使用 dlfcn-win32），取得公开 `ISovKit*` 句柄，业务优先通过 C++ 虚接口调用，其余辅助接口使用动态 C 入口。C++ 接口要求编译器及 ABI 与 SDK 兼容；Windows 不要求 SDK `.lib`。源码位置和断点入口见[架构与调试指南](docs/ARCHITECTURE.md)。
 
 启动身份还要求 `sovkit_info().keystoreDetachVersion >= 1`；使用带该能力的 0.1.0 SDK。旧 ABI 25 库仍可查看能力，但缺少安全解绑时不会启动测试身份。当前生成 84 个类型安全的导入、58 个 JSON 操作；回调注册、生命周期、密钥指针类接口由宿主管理，不能从任意 JSON 直接调用。
 
